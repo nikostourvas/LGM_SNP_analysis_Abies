@@ -144,8 +144,8 @@ obj <- missingno(obj, type = "genotypes", cutoff = 0.15)
 ## PCAdapt
 ```{r eval=FALSE, include=FALSE}
 # install radiator
-if (!require("pak")) install.packages("pak")
-pak::pkg_install("thierrygosselin/radiator")
+# if (!require("pak")) install.packages("pak")
+# pak::pkg_install("thierrygosselin/radiator")
 library(radiator)
 ```
 
@@ -272,25 +272,27 @@ mv obj.bsc /home/nikos/R_projects/LGM_SNP_analysis_Abies/data/obj.bsc
 ```
 
 ```{bash eval=F}
-cd "/home/nikos/Genetics apps/BayeScan2.1/binaries"
-pwd
+cd /home/rstudio/software/bayescan/BayeScan2.1/binaries
+
+sudo chmod +x BayeScan2.1_linux64bits
 
 # launch bayescan analysis
-./BayeScan2.1_linux64bits /home/nikos/R_projects/LGM_SNP_analysis_Abies/data/obj.bsc
+# changed pr_odds to 2; see Roschanski et al. 2016
+./BayeScan2.1_linux64bits /home/rstudio/working/R_projects/LGM_SNP_analysis_Abies/data/obj.bsc -pr_odds 2
 ```
 
 ```{bash eval=F}
 # move bayescan output files to project directory
 mkdir Bayescan_out
-cd "/home/nikos/Genetics apps/BayeScan2.1/binaries"
-mv obj* /home/nikos/R_projects/LGM_SNP_analysis_Abies/Bayescan_out
+cd /home/rstudio/software/bayescan/BayeScan2.1/binaries
+mv obj* /home/rstudio/working/R_projects/LGM_SNP_analysis_Abies/Bayescan_out
 ```
 
 ```{bash plot_R, eval=F}
 # copy plot_R.r script
-cd "/home/nikos/Genetics apps/BayeScan2.1/R functions"
-cp "/home/nikos/Genetics apps/BayeScan2.1/R functions/plot_R.r" \
-/home/nikos/R_projects/LGM_SNP_analysis_Abies/Bayescan_out
+<!-- cd "/home/nikos/Genetics apps/BayeScan2.1/R functions" -->
+<!-- cp "/home/nikos/Genetics apps/BayeScan2.1/R functions/plot_R.r" \ -->
+<!-- /home/nikos/R_projects/LGM_SNP_analysis_Abies/Bayescan_out -->
 ```
 
 ```{r plot_R_function}
@@ -319,7 +321,7 @@ points(log10(res[non_highlight_rows,colq]),res[non_highlight_rows,colfstat],pch=
 
 if (name_highlighted) {
  	if (length(highlight_rows)>0) {
- 		text(log10(res[highlight_rows,colq]),res[highlight_rows,colfstat],row.names(res[highlight_rows,]),col="red",cex=size*1.2,font=2)
+ 		text(log10(res[highlight_rows,colq]),res[highlight_rows,colfstat],row.names(res[highlight_rows,]),col="red",cex=size*1.2,font=1)
  	}
 }
 else {
@@ -335,19 +337,70 @@ return(list("outliers"=outliers,"nb_outliers"=length(outliers)))
 }
 ```
 
-```{r}
+```{r, fig.width=10, dpi=300}
 # Run this after running "plot_R.r"
-results <- plot_bayescan("Bayescan_out/obj_fst.txt",0,FDR=0.05)
+# results_bay <- plot_bayescan("Bayescan_out/obj_fst.txt",0,FDR=0.05)
+# 
+plot_bayescan(res="Bayescan_out/obj_fst.txt",FDR=0.05, highlight = results_bay$outliers, add_text = F,name_highlighted = T, size = 0.7)
 
-results$outliers
-results$nb_outliers
+plot_bayescan("Bayescan_out/obj_fst.txt", FDR=0.05, add_text = F)
+
+# results_bay$outliers
+# results_bay$nb_outliers
+```
+
+```{r}
+# Check also the bayescan pipeline inside radiator
 ```
 
 #### find which loci are outliers
 ```{r}
-outliers_bayescan <- locNames(obj)[results$outliers]
+outliers_bayescan <- locNames(obj)[results_bay$outliers]
 outliers_bayescan
 ```
+
+
+## Arlequin - HFdist
+```{r}
+library(strataG)
+
+# make .arp input file - strataG
+#### Convert input file
+        loci <- genind2loci(obj)
+        
+        ## obj_g <- genind2gtypes(obj)
+        obj_g <- loci2gtypes(loci)
+
+strataG::write.arlequin(obj_g, label = "obj.arlequin")
+
+
+
+
+### make .arp input file - radiator
+
+
+```
+
+
+```{bash}
+mkdir Arlequin
+
+mv obj.arlequin.arp /home/rstudio/working/R_projects/\
+LGM_SNP_analysis_Abies/Arlequin/obj.arlequin.arp
+```
+
+```{bash}
+cd Arlequin
+
+sudo chmod +x /home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit
+
+# run analysis
+/home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit \
+obj.arlequin.arp standard_amova__loci_under_selection.ars
+```
+
+
+
 
 ## Which loci were detected by pcadapt and bayescan?
 ```{r}
@@ -361,7 +414,6 @@ mydata=read.table("yourprefix.sel",colClasses="numeric")
 ```
 
 
-## HFdist
 
 # Logistic regression : linking outliers and environmental factor
 https://popgen.nescent.org/2016-01-26-SNP-selection.html
