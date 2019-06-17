@@ -436,12 +436,16 @@ ggplot(all, aes(x=population, y=count) ) +
 ### Private alleles per cohort - level Country/Pop
 ```{r private_pops, cache=TRUE, dpi=300, fig.width=8.5}
 private <- poppr::private_alleles(obj, report = "data.frame")
-private
-# ggplot(private) + geom_tile(aes(x = population, 
-#                                 y = allele, 
-#                                 fill = count)) +
-#   ggtitle("Private alleles per population") +
-#   scale_fill_viridis_c()
+
+if(is.data.frame(private)){
+  
+ggplot(private) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per population") +
+  scale_fill_viridis_c()
+  
+}
 ```
 
 ### Private alleles per cohort - level Country
@@ -450,14 +454,17 @@ setPop(obj) <- ~Country
 
 private <- poppr::private_alleles(obj, 
                                   report = "data.frame")
-private
 
+
+if(is.data.frame(private)){
 
 ggplot(private) + geom_tile(aes(x = population,
                                 y = allele,
                                 fill = count)) +
   ggtitle("Private alleles per cohort") +
   scale_fill_viridis_c()
+  
+}
 
 setPop(obj) <- ~Country/Pop
 ```
@@ -465,15 +472,20 @@ setPop(obj) <- ~Country/Pop
 ```{r}
 setPop(obj) <- ~Country
 
-# PA <- rep(0, length(popNames(obj)))
 PA <- rowSums(poppr::private_alleles(obj, count.alleles=F))
-PA <- data.frame(PA)
-PA <- rbind(PA, Total=colSums(PA))
-PA
-
-knitr::kable(PA, "html", digits = 3, 
+if(is.numeric(PA)){
+  PA <- data.frame(PA)
+  PA <- rbind(PA, Total=colSums(PA))
+  
+  knitr::kable(PA, "html", digits = 3, 
              caption="Private alleles per cohort") %>% 
         kable_styling(bootstrap_options = "striped", full_width = F)
+  
+}else{
+  print("No private alleles detected")
+}
+
+
                       
 
 setPop(obj) <- ~Country/Pop

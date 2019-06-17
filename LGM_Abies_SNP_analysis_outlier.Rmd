@@ -361,17 +361,17 @@ outliers_bayescan
 
 
 ## Arlequin - HFdist
-```{r}
+```{r eval=F}
 library(strataG)
 
 # make .arp input file - strataG
 #### Convert input file
-        loci <- genind2loci(obj)
+        obj_pos_loci <- genind2loci(obj_pos)
         
         ## obj_g <- genind2gtypes(obj)
-        obj_g <- loci2gtypes(loci)
+        obj_g_pos <- loci2gtypes(obj_pos_loci)
 
-strataG::write.arlequin(obj_g, label = "obj.arlequin")
+strataG::write.arlequin(obj_g_pos, label = "obj.arlequin")
 
 
 
@@ -382,7 +382,7 @@ strataG::write.arlequin(obj_g, label = "obj.arlequin")
 ```
 
 
-```{bash}
+```{bash eval=F}
 mkdir Arlequin
 
 mv obj.arlequin.arp /home/rstudio/working/R_projects/\
