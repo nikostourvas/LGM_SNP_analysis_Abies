@@ -1,0 +1,1128 @@
+---
+title: "LifeGenMon Abies SNP analysis - Are observed number of alleles patterns affected by data filtering?"
+author: "Nikos Tourvas"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+bibliography: library.bib
+output:
+  html_notebook:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+    toc_depth: 3
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    ## toc_float: yes
+  pdf_document:
+    toc: yes
+always_allow_html: yes
+---
+
+# Case 1
+
+```{r}
+rm(list=ls())
+```
+
+<!-- # Import csv -->
+```{r include=FALSE}
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                header = T, 
+                na.strings = c("?", "Uncallable", "Bad")
+               # ,stringsAsFactors = T
+               , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+               )
+# snp
+```
+
+
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
+```{r include=F}
+library(tidyverse)
+
+snp <- snp %>% 
+  mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+  mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+  
+  mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+  
+  mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+```
+
+<!-- ## Remove samples that consistently do not amplify -->
+```{r include=F}
+# 
+# snp_fil <- snp %>% 
+#         filter(snpa != "Bad")
+# 
+# snp_fil
+```
+
+<!-- ### Create a df following the guidelines of the loci format -->
+```{r include=F}
+snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+# snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+snp_loci_format <- snp_loci_format[,-1]
+rownames(snp_loci_format) <- snp[,1]
+
+# snp_loci_format
+```
+
+```{r include=F}
+## Add a second column for population
+
+pop1 <- replicate(124, "DE_AAL_A_1")
+pop2 <- replicate(16, "DE_AAL_NR_1")
+pop3 <- replicate(16, "DE_AAL_NR_2")
+pop4 <- replicate(16, "DE_AAL_NR_3")
+pop5 <- replicate(16, "DE_AAL_NR_4")
+pop6 <- replicate(124, "GR_AB_A_1")
+pop7 <- replicate(20, "GR_AB_NR_1")
+pop8 <- replicate(18, "GR_AB_NR_2")
+pop9 <- replicate(16, "GR_AB_NR_3")
+pop10 <- replicate(10, "GR_AB_NR_4")
+pop11 <- replicate(124, "SI_AAL_A_1")
+pop12 <- replicate(16, "SI_AAL_NR_1")
+pop13 <- replicate(16, "SI_AAL_NR_2")
+pop14 <- replicate(16, "SI_AAL_NR_3")
+pop15 <- replicate(16, "SI_AAL_NR_4")
+
+pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+         pop7, pop8, pop9, pop10, pop11,
+         pop12, pop13, pop14, pop15)
+
+# pop
+
+snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+
+# snp_loci_format
+```
+
+<!-- ## Create genind object -->
+```{r include=F}
+library(pegas)
+
+data <- as.loci(snp_loci_format, 
+                col.pop = 1
+                ,allele.sep = "/")
+# data
+
+obj_origin <- loci2genind(data,)
+# obj_origin
+```
+
+<!-- ### stratify data set -->
+```{r include=F}
+strata_df <- as.data.frame(snp_loci_format$pop)
+colnames(strata_df) <- "strata"
+strata_df <- separate(strata_df, col = strata, sep="_", 
+                      into = c("Country", 
+                               "Species", 
+                               "Pop", 
+                               "Plot"))
+strata(obj_origin) <- strata_df
+
+setPop(obj_origin) <- ~Country/Pop
+# obj_origin
+```
+
+<!-- # Data filtering -->
+
+<!-- ### Remove monomorphic loci -->
+```{r include=F}
+library(poppr)
+obj <- informloci(obj_origin, MAF = 0)
+```
+
+<!-- ### Filter out missing data -->
+```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+threshold <- 0.10
+
+obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold, quiet = T)
+```
+
+<!-- ### Remove uninformative loci -->
+```{r include=FALSE}
+library(poppr)
+
+maf <- 0.05
+
+obj <- informloci(obj, MAF = maf)
+```
+
+### Data filtering thresholds
+```{r}
+paste("SNP loci:", threshold*100, 
+      "% missing data across populations", sep=" ")
+```
+```{r}
+paste("Individuals:", threshold*100, "% missing data", sep=" ")
+```
+```{r}
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+
+### Data set details after data filtering:
+```{r}
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+# Case 2 - No MAF filter
+
+```{r}
+rm(list=ls())
+```
+
+<!-- # Import csv -->
+```{r include=FALSE}
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                header = T, 
+                na.strings = c("?", "Uncallable", "Bad")
+               # ,stringsAsFactors = T
+               , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+               )
+# snp
+```
+
+
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
+```{r include=F}
+library(tidyverse)
+
+snp <- snp %>% 
+  mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+  mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+  
+  mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+  
+  mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+```
+
+<!-- ## Remove samples that consistently do not amplify -->
+```{r include=F}
+# 
+# snp_fil <- snp %>% 
+#         filter(snpa != "Bad")
+# 
+# snp_fil
+```
+
+<!-- ### Create a df following the guidelines of the loci format -->
+```{r include=F}
+snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+# snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+snp_loci_format <- snp_loci_format[,-1]
+rownames(snp_loci_format) <- snp[,1]
+
+# snp_loci_format
+```
+
+```{r include=F}
+## Add a second column for population
+
+pop1 <- replicate(124, "DE_AAL_A_1")
+pop2 <- replicate(16, "DE_AAL_NR_1")
+pop3 <- replicate(16, "DE_AAL_NR_2")
+pop4 <- replicate(16, "DE_AAL_NR_3")
+pop5 <- replicate(16, "DE_AAL_NR_4")
+pop6 <- replicate(124, "GR_AB_A_1")
+pop7 <- replicate(20, "GR_AB_NR_1")
+pop8 <- replicate(18, "GR_AB_NR_2")
+pop9 <- replicate(16, "GR_AB_NR_3")
+pop10 <- replicate(10, "GR_AB_NR_4")
+pop11 <- replicate(124, "SI_AAL_A_1")
+pop12 <- replicate(16, "SI_AAL_NR_1")
+pop13 <- replicate(16, "SI_AAL_NR_2")
+pop14 <- replicate(16, "SI_AAL_NR_3")
+pop15 <- replicate(16, "SI_AAL_NR_4")
+
+pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+         pop7, pop8, pop9, pop10, pop11,
+         pop12, pop13, pop14, pop15)
+
+# pop
+
+snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+
+# snp_loci_format
+```
+
+<!-- ## Create genind object -->
+```{r include=F}
+library(pegas)
+
+data <- as.loci(snp_loci_format, 
+                col.pop = 1
+                ,allele.sep = "/")
+# data
+
+obj_origin <- loci2genind(data,)
+# obj_origin
+```
+
+<!-- ### stratify data set -->
+```{r include=F}
+strata_df <- as.data.frame(snp_loci_format$pop)
+colnames(strata_df) <- "strata"
+strata_df <- separate(strata_df, col = strata, sep="_", 
+                      into = c("Country", 
+                               "Species", 
+                               "Pop", 
+                               "Plot"))
+strata(obj_origin) <- strata_df
+
+setPop(obj_origin) <- ~Country/Pop
+# obj_origin
+```
+
+<!-- # Data filtering -->
+
+<!-- ### Remove monomorphic loci -->
+```{r include=F}
+library(poppr)
+obj <- informloci(obj_origin, MAF = 0)
+```
+
+<!-- ### Filter out missing data -->
+```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+threshold <- 0.10
+
+obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold, quiet = T)
+```
+
+<!-- ### Remove uninformative loci -->
+```{r include=FALSE}
+library(poppr)
+
+maf <- 0
+
+obj <- informloci(obj, MAF = maf)
+```
+
+### Data filtering thresholds
+```{r}
+paste("SNP loci:", threshold*100, 
+      "% missing data across populations", sep=" ")
+```
+```{r}
+paste("Individuals:", threshold*100, "% missing data", sep=" ")
+```
+```{r}
+paste("SNP loci with minor allele frequency =", maf)
+```
+
+
+### Data set details after data filtering:
+```{r}
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+# Case 3 - Filter only extreme values
+
+```{r}
+rm(list=ls())
+```
+
+<!-- # Import csv -->
+```{r include=FALSE}
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                header = T, 
+                na.strings = c("?", "Uncallable", "Bad")
+               # ,stringsAsFactors = T
+               , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+               )
+# snp
+```
+
+
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
+```{r include=F}
+library(tidyverse)
+
+snp <- snp %>% 
+  mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+  mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+  
+  mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+  
+  mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+```
+
+<!-- ## Remove samples that consistently do not amplify -->
+```{r include=F}
+# 
+# snp_fil <- snp %>% 
+#         filter(snpa != "Bad")
+# 
+# snp_fil
+```
+
+<!-- ### Create a df following the guidelines of the loci format -->
+```{r include=F}
+snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+# snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+snp_loci_format <- snp_loci_format[,-1]
+rownames(snp_loci_format) <- snp[,1]
+
+# snp_loci_format
+```
+
+```{r include=F}
+## Add a second column for population
+
+pop1 <- replicate(124, "DE_AAL_A_1")
+pop2 <- replicate(16, "DE_AAL_NR_1")
+pop3 <- replicate(16, "DE_AAL_NR_2")
+pop4 <- replicate(16, "DE_AAL_NR_3")
+pop5 <- replicate(16, "DE_AAL_NR_4")
+pop6 <- replicate(124, "GR_AB_A_1")
+pop7 <- replicate(20, "GR_AB_NR_1")
+pop8 <- replicate(18, "GR_AB_NR_2")
+pop9 <- replicate(16, "GR_AB_NR_3")
+pop10 <- replicate(10, "GR_AB_NR_4")
+pop11 <- replicate(124, "SI_AAL_A_1")
+pop12 <- replicate(16, "SI_AAL_NR_1")
+pop13 <- replicate(16, "SI_AAL_NR_2")
+pop14 <- replicate(16, "SI_AAL_NR_3")
+pop15 <- replicate(16, "SI_AAL_NR_4")
+
+pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+         pop7, pop8, pop9, pop10, pop11,
+         pop12, pop13, pop14, pop15)
+
+# pop
+
+snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+
+# snp_loci_format
+```
+
+<!-- ## Create genind object -->
+```{r include=F}
+library(pegas)
+
+data <- as.loci(snp_loci_format, 
+                col.pop = 1
+                ,allele.sep = "/")
+# data
+
+obj_origin <- loci2genind(data,)
+# obj_origin
+```
+
+<!-- ### stratify data set -->
+```{r include=F}
+strata_df <- as.data.frame(snp_loci_format$pop)
+colnames(strata_df) <- "strata"
+strata_df <- separate(strata_df, col = strata, sep="_", 
+                      into = c("Country", 
+                               "Species", 
+                               "Pop", 
+                               "Plot"))
+strata(obj_origin) <- strata_df
+
+setPop(obj_origin) <- ~Country/Pop
+# obj_origin
+```
+
+<!-- # Data filtering -->
+
+<!-- ### Remove monomorphic loci -->
+```{r include=F}
+library(poppr)
+obj <- informloci(obj_origin, MAF = 0)
+```
+
+<!-- ### Filter out missing data -->
+```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+threshold <- 0.5
+
+obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold, quiet = T)
+```
+
+<!-- ### Remove uninformative loci -->
+```{r include=FALSE}
+library(poppr)
+
+maf <- 0
+
+obj <- informloci(obj, MAF = maf)
+```
+
+### Data filtering thresholds
+```{r}
+paste("SNP loci:", threshold*100, 
+      "% missing data across populations", sep=" ")
+```
+```{r}
+paste("Individuals:", threshold*100, "% missing data", sep=" ")
+```
+```{r}
+paste("SNP loci with minor allele frequency =", maf)
+```
+
+
+### Data set details after data filtering:
+```{r}
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+In the previous 3 cases the missing data filter for SNP loci is applied on the whole data set (not for each population). This means that a 10% threshold will result in one or more populations ending up with higher percentage of missing data than 10% for certain loci.
+
+For the following 3 cases the missing data filter for SNP loci is applied for each population.
+
+# Case 4
+
+```{r}
+rm(list=ls())
+```
+
+<!-- # Import csv -->
+```{r include=FALSE}
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                header = T, 
+                na.strings = c("?", "Uncallable", "Bad")
+               # ,stringsAsFactors = T
+               , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+               )
+# snp
+```
+
+
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
+```{r include=F}
+library(tidyverse)
+
+snp <- snp %>% 
+  mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+  mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+  
+  mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+  
+  mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+```
+
+<!-- ## Remove samples that consistently do not amplify -->
+```{r include=F}
+# 
+# snp_fil <- snp %>% 
+#         filter(snpa != "Bad")
+# 
+# snp_fil
+```
+
+<!-- ### Create a df following the guidelines of the loci format -->
+```{r include=F}
+snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+# snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+snp_loci_format <- snp_loci_format[,-1]
+rownames(snp_loci_format) <- snp[,1]
+
+# snp_loci_format
+```
+
+```{r include=F}
+## Add a second column for population
+
+pop1 <- replicate(124, "DE_AAL_A_1")
+pop2 <- replicate(16, "DE_AAL_NR_1")
+pop3 <- replicate(16, "DE_AAL_NR_2")
+pop4 <- replicate(16, "DE_AAL_NR_3")
+pop5 <- replicate(16, "DE_AAL_NR_4")
+pop6 <- replicate(124, "GR_AB_A_1")
+pop7 <- replicate(20, "GR_AB_NR_1")
+pop8 <- replicate(18, "GR_AB_NR_2")
+pop9 <- replicate(16, "GR_AB_NR_3")
+pop10 <- replicate(10, "GR_AB_NR_4")
+pop11 <- replicate(124, "SI_AAL_A_1")
+pop12 <- replicate(16, "SI_AAL_NR_1")
+pop13 <- replicate(16, "SI_AAL_NR_2")
+pop14 <- replicate(16, "SI_AAL_NR_3")
+pop15 <- replicate(16, "SI_AAL_NR_4")
+
+pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+         pop7, pop8, pop9, pop10, pop11,
+         pop12, pop13, pop14, pop15)
+
+# pop
+
+snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+
+# snp_loci_format
+```
+
+<!-- ## Create genind object -->
+```{r include=F}
+library(pegas)
+
+data <- as.loci(snp_loci_format, 
+                col.pop = 1
+                ,allele.sep = "/")
+# data
+
+obj_origin <- loci2genind(data,)
+# obj_origin
+```
+
+<!-- ### stratify data set -->
+```{r include=F}
+strata_df <- as.data.frame(snp_loci_format$pop)
+colnames(strata_df) <- "strata"
+strata_df <- separate(strata_df, col = strata, sep="_", 
+                      into = c("Country", 
+                               "Species", 
+                               "Pop", 
+                               "Plot"))
+strata(obj_origin) <- strata_df
+
+setPop(obj_origin) <- ~Country/Pop
+# obj_origin
+```
+
+<!-- # Data filtering -->
+
+<!-- ### Remove monomorphic loci -->
+```{r include=F}
+library(poppr)
+obj <- informloci(obj_origin, MAF = 0)
+```
+
+<!-- ### Filter out missing data -->
+```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+threshold <- 0.10
+
+obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold, quiet = T)
+```
+
+```{r include=F}
+info <- info_table(obj, type = "missing", plot = F, plotlab = F)
+
+# Remove loci with specified % of missing data by pop
+miss <- as.data.frame(t(info))
+miss$loc <- rownames(miss)
+
+miss_res <- miss %>% 
+  filter_if(is.double, any_vars(. > threshold))
+
+miss_res$loc
+
+# create list of loci to keep
+keeploc <- setdiff(locNames(obj), miss_res$loc)
+
+# filter loci in genind object
+obj_new <- obj[loc = keeploc]
+```
+
+<!-- ### Remove uninformative loci -->
+```{r include=FALSE}
+library(poppr)
+
+maf <- 0.05
+
+obj <- informloci(obj, MAF = maf)
+```
+
+### Data filtering thresholds
+```{r}
+paste("SNP loci:", threshold*100, 
+      "% missing data across populations", sep=" ")
+```
+```{r}
+paste("Individuals:", threshold*100, "% missing data", sep=" ")
+```
+```{r}
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+
+### Data set details after data filtering:
+```{r}
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+# Case 5 - No MAF filter
+
+```{r}
+rm(list=ls())
+```
+
+<!-- # Import csv -->
+```{r include=FALSE}
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                header = T, 
+                na.strings = c("?", "Uncallable", "Bad")
+               # ,stringsAsFactors = T
+               , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+               )
+# snp
+```
+
+
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
+```{r include=F}
+library(tidyverse)
+
+snp <- snp %>% 
+  mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+  mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+  
+  mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+  
+  mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+```
+
+<!-- ## Remove samples that consistently do not amplify -->
+```{r include=F}
+# 
+# snp_fil <- snp %>% 
+#         filter(snpa != "Bad")
+# 
+# snp_fil
+```
+
+<!-- ### Create a df following the guidelines of the loci format -->
+```{r include=F}
+snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+# snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+snp_loci_format <- snp_loci_format[,-1]
+rownames(snp_loci_format) <- snp[,1]
+
+# snp_loci_format
+```
+
+```{r include=F}
+## Add a second column for population
+
+pop1 <- replicate(124, "DE_AAL_A_1")
+pop2 <- replicate(16, "DE_AAL_NR_1")
+pop3 <- replicate(16, "DE_AAL_NR_2")
+pop4 <- replicate(16, "DE_AAL_NR_3")
+pop5 <- replicate(16, "DE_AAL_NR_4")
+pop6 <- replicate(124, "GR_AB_A_1")
+pop7 <- replicate(20, "GR_AB_NR_1")
+pop8 <- replicate(18, "GR_AB_NR_2")
+pop9 <- replicate(16, "GR_AB_NR_3")
+pop10 <- replicate(10, "GR_AB_NR_4")
+pop11 <- replicate(124, "SI_AAL_A_1")
+pop12 <- replicate(16, "SI_AAL_NR_1")
+pop13 <- replicate(16, "SI_AAL_NR_2")
+pop14 <- replicate(16, "SI_AAL_NR_3")
+pop15 <- replicate(16, "SI_AAL_NR_4")
+
+pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+         pop7, pop8, pop9, pop10, pop11,
+         pop12, pop13, pop14, pop15)
+
+# pop
+
+snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+
+# snp_loci_format
+```
+
+<!-- ## Create genind object -->
+```{r include=F}
+library(pegas)
+
+data <- as.loci(snp_loci_format, 
+                col.pop = 1
+                ,allele.sep = "/")
+# data
+
+obj_origin <- loci2genind(data,)
+# obj_origin
+```
+
+<!-- ### stratify data set -->
+```{r include=F}
+strata_df <- as.data.frame(snp_loci_format$pop)
+colnames(strata_df) <- "strata"
+strata_df <- separate(strata_df, col = strata, sep="_", 
+                      into = c("Country", 
+                               "Species", 
+                               "Pop", 
+                               "Plot"))
+strata(obj_origin) <- strata_df
+
+setPop(obj_origin) <- ~Country/Pop
+# obj_origin
+```
+
+<!-- # Data filtering -->
+
+<!-- ### Remove monomorphic loci -->
+```{r include=F}
+library(poppr)
+obj <- informloci(obj_origin, MAF = 0)
+```
+
+<!-- ### Filter out missing data -->
+```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+threshold <- 0.10
+
+obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold, quiet = T)
+```
+
+```{r include=F}
+info <- info_table(obj, type = "missing", plot = F, plotlab = F)
+
+# Remove loci with specified % of missing data by pop
+miss <- as.data.frame(t(info))
+miss$loc <- rownames(miss)
+
+miss_res <- miss %>% 
+  filter_if(is.double, any_vars(. > threshold))
+
+miss_res$loc
+
+# create list of loci to keep
+keeploc <- setdiff(locNames(obj), miss_res$loc)
+
+# filter loci in genind object
+obj_new <- obj[loc = keeploc]
+```
+
+<!-- ### Remove uninformative loci -->
+```{r include=FALSE}
+library(poppr)
+
+maf <- 0
+
+obj <- informloci(obj, MAF = maf)
+```
+
+### Data filtering thresholds
+```{r}
+paste("SNP loci:", threshold*100, 
+      "% missing data across populations", sep=" ")
+```
+
+```{r}
+paste("Individuals:", threshold*100, "% missing data", sep=" ")
+```
+
+```{r}
+paste("SNP loci with minor allele frequency =", maf)
+```
+
+
+### Data set details after data filtering:
+```{r}
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+# Case 6 - Filter only extreme values
+
+```{r}
+rm(list=ls())
+```
+
+<!-- # Import csv -->
+```{r include=FALSE}
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                header = T, 
+                na.strings = c("?", "Uncallable", "Bad")
+               # ,stringsAsFactors = T
+               , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+               )
+# snp
+```
+
+
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
+```{r include=F}
+library(tidyverse)
+
+snp <- snp %>% 
+  mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+  mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+  
+  mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+  
+  mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+```
+
+<!-- ## Remove samples that consistently do not amplify -->
+```{r include=F}
+# 
+# snp_fil <- snp %>% 
+#         filter(snpa != "Bad")
+# 
+# snp_fil
+```
+
+<!-- ### Create a df following the guidelines of the loci format -->
+```{r include=F}
+snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+# snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+snp_loci_format <- snp_loci_format[,-1]
+rownames(snp_loci_format) <- snp[,1]
+
+# snp_loci_format
+```
+
+```{r include=F}
+## Add a second column for population
+
+pop1 <- replicate(124, "DE_AAL_A_1")
+pop2 <- replicate(16, "DE_AAL_NR_1")
+pop3 <- replicate(16, "DE_AAL_NR_2")
+pop4 <- replicate(16, "DE_AAL_NR_3")
+pop5 <- replicate(16, "DE_AAL_NR_4")
+pop6 <- replicate(124, "GR_AB_A_1")
+pop7 <- replicate(20, "GR_AB_NR_1")
+pop8 <- replicate(18, "GR_AB_NR_2")
+pop9 <- replicate(16, "GR_AB_NR_3")
+pop10 <- replicate(10, "GR_AB_NR_4")
+pop11 <- replicate(124, "SI_AAL_A_1")
+pop12 <- replicate(16, "SI_AAL_NR_1")
+pop13 <- replicate(16, "SI_AAL_NR_2")
+pop14 <- replicate(16, "SI_AAL_NR_3")
+pop15 <- replicate(16, "SI_AAL_NR_4")
+
+pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+         pop7, pop8, pop9, pop10, pop11,
+         pop12, pop13, pop14, pop15)
+
+# pop
+
+snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+
+# snp_loci_format
+```
+
+<!-- ## Create genind object -->
+```{r include=F}
+library(pegas)
+
+data <- as.loci(snp_loci_format, 
+                col.pop = 1
+                ,allele.sep = "/")
+# data
+
+obj_origin <- loci2genind(data,)
+# obj_origin
+```
+
+<!-- ### stratify data set -->
+```{r include=F}
+strata_df <- as.data.frame(snp_loci_format$pop)
+colnames(strata_df) <- "strata"
+strata_df <- separate(strata_df, col = strata, sep="_", 
+                      into = c("Country", 
+                               "Species", 
+                               "Pop", 
+                               "Plot"))
+strata(obj_origin) <- strata_df
+
+setPop(obj_origin) <- ~Country/Pop
+# obj_origin
+```
+
+<!-- # Data filtering -->
+
+<!-- ### Remove monomorphic loci -->
+```{r include=F}
+library(poppr)
+obj <- informloci(obj_origin, MAF = 0)
+```
+
+<!-- ### Filter out missing data -->
+```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+threshold <- 0.5
+
+obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold, quiet = T)
+```
+
+```{r include=F}
+info <- info_table(obj, type = "missing", plot = F, plotlab = F)
+
+# Remove loci with specified % of missing data by pop
+miss <- as.data.frame(t(info))
+miss$loc <- rownames(miss)
+
+miss_res <- miss %>% 
+  filter_if(is.double, any_vars(. > threshold))
+
+miss_res$loc
+
+# create list of loci to keep
+keeploc <- setdiff(locNames(obj), miss_res$loc)
+
+# filter loci in genind object
+obj_new <- obj[loc = keeploc]
+```
+
+<!-- ### Remove uninformative loci -->
+```{r include=FALSE}
+library(poppr)
+
+maf <- 0
+
+obj <- informloci(obj, MAF = maf)
+```
+
+### Data filtering thresholds
+```{r}
+paste("SNP loci:", threshold*100, 
+      "% missing data across populations", sep=" ")
+```
+```{r}
+paste("Individuals:", threshold*100, "% missing data", sep=" ")
+```
+```{r}
+paste("SNP loci with minor allele frequency =", maf)
+```
+
+
+### Data set details after data filtering:
+```{r}
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```

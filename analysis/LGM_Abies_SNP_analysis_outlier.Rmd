@@ -22,7 +22,7 @@ always_allow_html: yes
 
 <!-- # Import csv -->
 ```{r import_csv, include=FALSE}
-snp <- read.csv("data/Genotyping-1841.025-03 Grid_reformated.csv", 
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
                 header = T, 
                 na.strings = c("?", "Uncallable", "Bad")
                # ,stringsAsFactors = T

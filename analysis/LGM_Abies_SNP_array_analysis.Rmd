@@ -60,7 +60,7 @@ always_allow_html: yes
 
 # Import csv
 ```{r import_csv}
-snp <- read.csv("data/Genotyping-1841.025-03 Grid_reformated.csv", 
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
                 header = T, 
                 na.strings = c("?", "Uncallable", "Bad")
                # ,stringsAsFactors = T
@@ -609,7 +609,7 @@ LD_sig_df
 ```
 
 ```{r}
-setwd("results")
+setwd("../results")
 
 for(i in 1:length(LD_list_df.long))
 write.csv(LD_list_df.long[[i]], file = paste(popNames(obj)[i], 
@@ -663,7 +663,7 @@ levelplot(t(hw.mat.adj), aspect = "fill",
 # correction (1000 permutations)") %>%
 #  kable_styling(bootstrap_options = "striped", full_width = F)
 
-setwd("results")
+setwd("../results")
 
 for(i in 1:length(hw.obj.df))
 write.csv(hw.obj.df[[i]], file = paste(popNames(obj)[i], 
@@ -1092,7 +1092,7 @@ struct <- structureRun(obj_g, k = 2:6, num.k.rep = 5,
 #### Tests for optimal K
 ```{r evanno, cache=T}
 ## read structure runs from pophelper
-sfiles <- list.files(path = "./gtypes.created.on.2019.04.27.21.33.22.structureRun/",
+sfiles <- list.files(path = "../results/gtypes.created.on.2019.04.27.21.33.22.structureRun/",
                      pattern = "out_f", full.names = T, recursive = T)
 
         ## include individual names from STRUCTURE file as row names

@@ -28,7 +28,7 @@ knitr::opts_chunk$set(include=FALSE)
 
 <!-- # Import csv -->
 ```{r include=FALSE}
-snp <- read.csv("/home/rstudio/working/R_projects/LGM_SNP_analysis_Abies/data/Genotyping-1841.025-03 Grid_reformated.csv", 
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
                 header = T, 
                 na.strings = c("?", "Uncallable", "Bad")
                # ,stringsAsFactors = T
@@ -183,7 +183,7 @@ paste(nInd(obj_SNP), "individuals", "and", nLoc(obj_SNP), "loci", sep=" ")
 library(popprxl)
 
 obj_SSR <- read.genalexcel(
-  "/home/rstudio/working/R_projects/LGM_SNP_analysis_Abies/data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
+  "/../data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
   sheet = "Abies",             # name of sheet where the genotypes reside
   genclone = F) 
 

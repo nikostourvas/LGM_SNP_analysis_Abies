@@ -1,0 +1,57 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!-- # Lauch arlequin -->
+```{bash}
+<!-- cp /home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit arlecore3522_64bit -->
+
+<!-- sudo chmod +x arlecore3522_64bit -->
+
+<!-- ./arlecore3522_64bit LGM_SNP_Abies.arp loci_selection_1000_100.ars -->
+```
+
+
+```{bash}
+sudo chmod +x /home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit
+
+/home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit ../data/LGM_SNP_Abies.arp ../data/loci_selection_1000_100.ars
+```
+
+```{bash}
+#mkdir ../results/Arlequin
+
+mv ../data/LGM_SNP_Abies.res/ ../results/Arlequin/LGM_SNP_Abies.res/
+```
+
+
+
+```{r}
+source("/home/rstudio/software/arlecore/arlecore_linux/Rfunctions/parseArlequin.r")
+```
+
+```{bash}
+cd ../results/Arlequin
+mkdir Graphics
+```
+
+```{r eval=F}
+#install.packages("XML")
+```
+
+```{r}
+library(XML)
+```
+
+
+```{r}
+parseArlequin(infile = "../results/Arlequin/LGM_SNP_Abies.res/LGM_SNP_Abies.xml",
+              outfiles ="../results/Arlequin/Graphics/", 
+              sourcePath ="/home/rstudio/software/arlecore/arlecore_linux/Rfunctions/" )
+```
+
