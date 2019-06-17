@@ -55,3 +55,8 @@ parseArlequin(infile = "../results/Arlequin/LGM_SNP_Abies.res/LGM_SNP_Abies.xml"
               sourcePath ="/home/rstudio/software/arlecore/arlecore_linux/Rfunctions/" )
 ```
 
+# cleaning
+```{bash}
+mv arl_run.ars arl_run.txt arlequin.ini NUL randseed.txt ../results/Arlequin
+```
+
