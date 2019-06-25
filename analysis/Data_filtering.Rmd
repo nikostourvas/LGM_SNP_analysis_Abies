@@ -1,0 +1,364 @@
+---
+title: "LifeGenMon Abies SNP analysis - Data filtering options"
+author: "Nikos Tourvas"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+bibliography: library.bib
+output:
+  html_notebook:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+    toc_depth: 3
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    ## toc_float: yes
+  pdf_document:
+    toc: yes
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = FALSE)
+```
+
+# Case 1
+
+```{r}
+rm(obj)
+```
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 0.05
+
+obj <- import.snp.abies(threshold_loci = threshold_loci,
+                        threshold_ind = threshold_ind,
+                        maf = maf)
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+```{r include=T}
+### Data set details after data filtering:
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+```{r, include=T}
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=2 )
+
+mis
+```
+
+```{r, include=T}
+setPop(obj) <- ~Country
+
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=1 )
+
+mis
+```
+
+# Case 2 - No MAF filter
+
+```{r}
+rm(obj)
+```
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 0
+
+obj <- import.snp.abies(threshold_loci = threshold_loci,
+                        threshold_ind = threshold_ind,
+                        maf = maf)
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+```{r include=T}
+### Data set details after data filtering:
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+```{r, include=T}
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=2 )
+
+mis
+```
+
+```{r, include=T}
+setPop(obj) <- ~Country
+
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=1 )
+
+mis
+```
+
+In the previous 2 cases the missing data filter for SNP loci is applied on the whole data set (not for each population). This means that a 10% threshold will result in one or more populations ending up with higher percentage of missing data than 10% for certain loci.
+
+For the following 2 cases the missing data filter for SNP loci is applied for each population.
+
+# Case 3
+
+```{r}
+rm(obj)
+```
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 0.05
+
+obj <- import.snp.abies2(threshold_loci = threshold_loci,
+                        threshold_ind = threshold_ind,
+                        maf = maf)
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+```{r include=T}
+### Data set details after data filtering:
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+```{r, include=T}
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=2 )
+
+mis
+```
+
+# Case 4 - No MAF filter
+
+```{r}
+rm(obj)
+```
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 0
+
+obj <- import.snp.abies2(threshold_loci = threshold_loci,
+                        threshold_ind = threshold_ind,
+                        maf = maf)
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+```{r include=T}
+### Data set details after data filtering:
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+
+# str(all)
+
+ggplot(all, aes(x=population, y=count) ) +
+  geom_bar(stat = "identity", 
+           color = "black", fill = "white",
+           width = .8) +
+  geom_text(aes(label=count, vjust = 1.6)) +
+  ggtitle("Total Number of alleles per population")
+```
+
+```{r, include=T}
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=2 )
+
+mis
+```
+

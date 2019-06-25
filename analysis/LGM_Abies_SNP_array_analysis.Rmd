@@ -164,7 +164,7 @@ obj_origin
 # Data filtering
 
 ### Check for missing data
-```{r missing, cache=F, fig.width=10, dpi=300}
+```{r missing, cache=F, fig.width=10, dpi=300, eval=F}
 capture.output(
 info_table(obj_origin, type = "missing", plot = TRUE, plotlab = F),
 file='NUL') 
@@ -173,6 +173,25 @@ file='NUL')
 div <- summary(obj_origin)
 
 # paste("Total missing data is",  round(div$NA.perc, digits = 2), "%", sep = " ")
+```
+
+```{r, include=T}
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=2 )
+
+mis
 ```
 
 ### Percent (%) of missing data by pop
@@ -221,15 +240,34 @@ obj <- informloci(obj_origin, MAF = 0)
 ```{r missing2, cache=F, fig.width=10, dpi=300}
 obj <- missingno(obj, type = "loci", cutoff = 0.10)
 
-obj <- missingno(obj, type = "genotypes", cutoff = 0.15)
+obj <- missingno(obj, type = "genotypes", cutoff = 0.10)
 
 test <- seppop(obj) %>% 
   lapply(propTyped, by="loc") %>% 
   lapply(sort)
 
-capture.output(
-info_table(obj, type = "missing", plot = TRUE, plotlab = F),
-file='NUL')
+# capture.output(
+# info_table(obj, type = "missing", plot = TRUE, plotlab = F),
+# file='NUL')
+```
+
+```{r, include=T}
+info <- t(
+  info_table(obj, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data_freq, -locus)
+
+mis <- info %>% 
+  ggplot(aes(x=locus, y=missing_data_freq)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0.10, colour = "red") +
+  facet_wrap(~pop, nrow=2 )
+
+mis
 ```
 
 # Summary statistics
