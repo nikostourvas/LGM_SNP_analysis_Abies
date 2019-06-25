@@ -177,7 +177,7 @@ div <- summary(obj_origin)
 
 ```{r, include=T}
 info <- t(
-  info_table(obj, type = "missing", plot = F, plotlab = F) )
+  info_table(obj_origin, type = "missing", plot = F, plotlab = F) )
 
 info <- as.data.frame(info[,-ncol(info)])
 
@@ -189,6 +189,7 @@ mis <- info %>%
   ggplot(aes(x=locus, y=missing_data_freq)) +
   geom_bar(stat = "identity") +
   geom_hline(yintercept = 0.10, colour = "red") +
+  ggtitle("Missing data frequency by cohort") +
   facet_wrap(~pop, nrow=2 )
 
 mis
@@ -233,14 +234,19 @@ knitr::kable(perc_bi, "html", digits = 2) %>%
 
 ### Remove uninformative (monomorphic) loci
 ```{r maf}
-obj <- informloci(obj_origin, MAF = 0)
+maf <- 0 
+
+obj <- informloci(obj_origin, MAF = maf)
 ```
 
 ### Filter out missing data
 ```{r missing2, cache=F, fig.width=10, dpi=300}
-obj <- missingno(obj, type = "loci", cutoff = 0.10)
+threshold_loci <- 0.1
+threshold_ind <- 0.1
 
-obj <- missingno(obj, type = "genotypes", cutoff = 0.10)
+obj <- missingno(obj, type = "loci", cutoff = threshold_loci)
+
+obj <- missingno(obj, type = "genotypes", cutoff = threshold_ind)
 
 test <- seppop(obj) %>% 
   lapply(propTyped, by="loc") %>% 
@@ -249,6 +255,24 @@ test <- seppop(obj) %>%
 # capture.output(
 # info_table(obj, type = "missing", plot = TRUE, plotlab = F),
 # file='NUL')
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+### Data set details after data filtering:
+```{r include=T}
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
 ```{r, include=T}
@@ -265,6 +289,7 @@ mis <- info %>%
   ggplot(aes(x=locus, y=missing_data_freq)) +
   geom_bar(stat = "identity") +
   geom_hline(yintercept = 0.10, colour = "red") +
+  ggtitle("Missing data frequency by cohort after filtering") +
   facet_wrap(~pop, nrow=2 )
 
 mis
