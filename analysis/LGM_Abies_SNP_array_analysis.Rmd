@@ -2,7 +2,7 @@
 title: "LifeGenMon Abies SNP analysis"
 author: "Nikos Tourvas"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
-# bibliography: library.bib
+bibliography: library.bib
 output:
   html_notebook:
     code_folding: hide
@@ -19,6 +19,10 @@ output:
     toc: yes
 always_allow_html: yes
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = FALSE)
+```
 
 ```{r libraries, echo=TRUE}
 # suppressPackageStartupMessages({
@@ -58,7 +62,7 @@ always_allow_html: yes
 ```
 
 
-# Import csv
+<!-- # Import csv -->
 ```{r import_csv}
 snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
                 header = T, 
@@ -70,9 +74,9 @@ snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv",
 ```
 
 
-## Transform sample names
-#### This will allow hierarchical analysis when applicable
-#### Country / Species / Pop / Plot
+<!-- ## Transform sample names -->
+<!-- #### This will allow hierarchical analysis when applicable -->
+<!-- #### Country / Species / Pop / Plot -->
 ```{r}
 snp <- snp %>% 
   mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
@@ -84,7 +88,7 @@ snp <- snp %>%
 ```
 
 
-## Remove samples that consistently do not amplify
+<!-- ## Remove samples that consistently do not amplify -->
 ```{r remove_bad}
 # 
 # snp_fil <- snp %>% 
@@ -93,7 +97,7 @@ snp <- snp %>%
 # snp_fil
 ```
 
-### Create a df following the guidelines of the loci format
+<!-- ### Create a df following the guidelines of the loci format -->
 ```{r}
 snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
 # snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
@@ -133,7 +137,7 @@ snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
 # snp_loci_format
 ```
 
-## Create genind object
+<!-- ## Create genind object -->
 ```{r}
 library(pegas)
 
@@ -146,7 +150,7 @@ obj_origin <- loci2genind(data,)
 # obj_origin
 ```
 
-### stratify data set
+<!-- ### stratify data set -->
 ```{r test}
 strata_df <- as.data.frame(snp_loci_format$pop)
 colnames(strata_df) <- "strata"
@@ -163,7 +167,7 @@ obj_origin
 
 # Data filtering
 
-### Check for missing data
+<!-- ### Check for missing data -->
 ```{r missing, cache=F, fig.width=10, dpi=300, eval=F}
 capture.output(
 info_table(obj_origin, type = "missing", plot = TRUE, plotlab = F),
@@ -186,17 +190,20 @@ info$locus <- rownames(info)
 info <- gather(info, key = pop, value = missing_data_freq, -locus)
 
 mis <- info %>% 
-  ggplot(aes(x=locus, y=missing_data_freq)) +
-  geom_bar(stat = "identity") +
-  geom_hline(yintercept = 0.10, colour = "red") +
-  ggtitle("Missing data frequency by cohort") +
-  facet_wrap(~pop, nrow=2 )
+        ggplot(aes(x=locus, y=missing_data_freq)) +
+        geom_bar(stat = "identity") +
+        geom_hline(yintercept = 0.10, colour = "red") +
+        theme(axis.text.x = element_text(colour = NA),
+              axis.ticks = element_line(colour = NA)) +
+        ggtitle("Missing data frequency by cohort") +
+        facet_wrap(~pop, nrow=2 )
 
 mis
 ```
+Some SNP loci exhibit high levels of missing data for some cohorts only. Maybe leverage this information per Country / Cohort basis?
 
 ### Percent (%) of missing data by pop
-```{r missing_by_pop}
+```{r missing_by_pop, include=T}
 library(purrr)
 missing_by_pop <- as.data.frame(
   seppop(obj_origin) %>% 
@@ -209,7 +216,7 @@ knitr::kable(missing_by_pop, digits = 2, format = "html") %>%
 ```
 
 ### How many loci are biallelic?
-```{r fig.height=3, fig.width=3, cache=T, dpi=300}
+```{r fig.height=3, fig.width=3, cache=T, dpi=300, include=T}
 alleles_per_locus <- nAll(obj_origin)
 
 number_df <- as.data.frame(alleles_per_locus)
@@ -232,14 +239,14 @@ knitr::kable(perc_bi, "html", digits = 2) %>%
         kable_styling(bootstrap_options = "striped", full_width = F)
 ```
 
-### Remove uninformative (monomorphic) loci
+<!-- ### Remove uninformative (monomorphic) loci -->
 ```{r maf}
 maf <- 0 
 
 obj <- informloci(obj_origin, MAF = maf)
 ```
 
-### Filter out missing data
+<!-- ### Filter out missing data -->
 ```{r missing2, cache=F, fig.width=10, dpi=300}
 threshold_loci <- 0.1
 threshold_ind <- 0.1
@@ -256,6 +263,14 @@ test <- seppop(obj) %>%
 # info_table(obj, type = "missing", plot = TRUE, plotlab = F),
 # file='NUL')
 ```
+
+
+```{r maf2}
+maf <- 0.01
+
+obj <- informloci(obj, MAF = maf)
+```
+
 
 ### Data filtering thresholds
 ```{r include=T}
@@ -286,11 +301,13 @@ info$locus <- rownames(info)
 info <- gather(info, key = pop, value = missing_data_freq, -locus)
 
 mis <- info %>% 
-  ggplot(aes(x=locus, y=missing_data_freq)) +
-  geom_bar(stat = "identity") +
-  geom_hline(yintercept = 0.10, colour = "red") +
-  ggtitle("Missing data frequency by cohort after filtering") +
-  facet_wrap(~pop, nrow=2 )
+        ggplot(aes(x=locus, y=missing_data_freq)) +
+        geom_bar(stat = "identity") +
+        geom_hline(yintercept = 0.10, colour = "red") +
+        theme(axis.text.x = element_text(colour = NA),
+              axis.ticks = element_line(colour = NA)) +
+        ggtitle("Missing data frequency by cohort after filtering") +
+        facet_wrap(~pop, nrow=2 )
 
 mis
 ```
@@ -387,7 +404,7 @@ Fis <- table_out(obj, Fis_by_locus, "Fis") ## better use boot.ppfis
 
 ```
 
-```{r SummaryTable, cache=T}
+```{r SummaryTable, cache=T, include=T}
 summary_df <- cbind(N, na[,1], ne_Hs[,1], Ho[,1], uHe[,1], Fis[,1])
 rownames(summary_df) <- c(popNames(obj), "Total")
 colnames(summary_df) <- c("N", "na", "ne", "Ho", "uHe", "Fis")
@@ -409,12 +426,12 @@ Fis: inbreeding coefficient [@nei_MolecularEvolutionaryGenetics_1987]
 
 ```{r}
 uHe <- uHe %>% 
-  mutate(upper = uHe + 2 * SE_uHe) %>% 
-  mutate(lower = uHe - 2 * SE_uHe) %>% 
+  mutate(upper = uHe + 1.96 * SE_uHe) %>% 
+  mutate(lower = uHe - 1.96 * SE_uHe) %>% 
   add_column(population = c(popNames(obj), "Total") )
 ```
 
-```{r fig.height=3, fig.width=5}
+```{r fig.height=3, fig.width=5, include=T}
 uHe2 <- uHe[-nrow(uHe),] %>%
   add_column(age = c("A","NR",
                             "A","NR",
@@ -436,7 +453,7 @@ p <- ggplot(uHe2, aes(x=population, y=uHe, fill = age)) +
 p 
 ```
 
-```{r fig.height=3, fig.width=5}
+```{r fig.height=3, fig.width=5, include=T}
 uHe_by_locus_tidy <- gather(as.data.frame(uHe_by_locus), 
                             key = "population",
                             value = "uHe")
@@ -447,10 +464,11 @@ ggplot(aes(x = population, y = uHe) ) +
   # geom_boxplot(width=.1) +
   stat_summary(fun.y=mean, 
                  geom="point") +
-  ggtitle("uHe") +
+  ggtitle("uHe distribution and mean value") +
   theme_classic()
 
 ```
+Distribution of uHe is not normal, so 95% CIs of previews graph are probably misleading
 
 ```{r}
 Fis <- as.data.frame(Fis[-nrow(Fis), 1] )
@@ -463,7 +481,7 @@ Fis <- Fis %>%
   add_column(population = popNames(obj), .before = Fis$Fis )
 ```
 
-```{r fig.height=3, fig.width=5}
+```{r fig.height=3, fig.width=5, include=T}
 Fis %>% 
 ggplot(aes(x=population, y=Fis)) +
   geom_point(stat = "identity", 
@@ -476,7 +494,7 @@ ggplot(aes(x=population, y=Fis)) +
   theme_classic()
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -497,7 +515,7 @@ ggplot(all, aes(x=population, y=count) ) +
 ```
 
 ### Private alleles per cohort - level Country/Pop
-```{r private_pops, cache=TRUE, dpi=300, fig.width=8.5}
+```{r private_pops, cache=TRUE, dpi=300, fig.width=8.5, include=T}
 private <- poppr::private_alleles(obj, report = "data.frame")
 
 if(is.data.frame(private)){
@@ -512,13 +530,12 @@ ggplot(private) + geom_tile(aes(x = population,
 ```
 
 ### Private alleles per cohort - level Country
-```{r}
+```{r include=T}
 setPop(obj) <- ~Country
 
 private <- poppr::private_alleles(obj, 
                                   report = "data.frame")
-
-
+private
 if(is.data.frame(private)){
 
 ggplot(private) + geom_tile(aes(x = population,
@@ -532,7 +549,7 @@ ggplot(private) + geom_tile(aes(x = population,
 setPop(obj) <- ~Country/Pop
 ```
 
-```{r}
+```{r include=T}
 setPop(obj) <- ~Country
 
 PA <- rowSums(poppr::private_alleles(obj, count.alleles=F))
@@ -552,22 +569,6 @@ if(is.numeric(PA)){
                       
 
 setPop(obj) <- ~Country/Pop
-```
-
-
-```{r LD_r, eval=FALSE, fig.height=10, dpi=300, include=FALSE}
-### LD
-# Index of association
-
-rd1 <- seppop(obj) %>% lapply(pair.ia, plot = F, quiet = T)
-# seppop: separates dataset by pop
-
-# Consistent range in the plotted graphics
-plotrange <- range(rd1, na.rm = TRUE)
-# Re-plot the graphics
-rd <- seppop(obj) %>% 
-  lapply(pair.ia, limits = plotrange, quiet = T,
-         sample = 999)
 ```
 
 ### LD
@@ -684,7 +685,7 @@ setPop(obj) <- ~Country/Pop
 
 LD between all pairs of loci was tested seperately for all three cohorts (DE, GR, SI). 
 
-The Holm-Bonferroni method was employed to account for multiple testing. [citation]
+The Holm-Bonferroni method was employed to account for multiple testing.
 
 Significant LD was detected on 131 loci for the German cohort, 80 loci for the Greek cohort, and 104 loci for the Slovenian cohort.
 
@@ -749,7 +750,7 @@ hw.mat
 ```
 
 ### F~ST~ (G~ST~) [@nei_MolecularEvolutionaryGenetics_1987]
-```{r Fst_table, cache=T}
+```{r Fst_table, cache=T, include=T}
 library(hierfstat)
 pair_fst <- genet.dist(obj, method = "Nei87")
 pair_fst <- as.data.frame(as.matrix(pair_fst))
@@ -763,7 +764,7 @@ knitr::kable(pair_fst, "html", digits = 4) %>%
         kable_styling(bootstrap_options = "striped", full_width = F)
 ```
 
-```{r Fst_table2, cache=T}
+```{r Fst_table2, cache=T, include=T}
 # library(hierfstat)
 setPop(obj) <- ~Country
 pair_fst <- genet.dist(obj, method = "Nei87")
@@ -783,7 +784,7 @@ setPop(obj) <- ~Country/Pop
 
 ### Nm based on F~ST~ (G~ST~) [@nei_MolecularEvolutionaryGenetics_1987]
 #### ATTN: Results differ from GenAlEx, as this calculates Nm based on the original F~ST~
-```{r}
+```{r include=T}
 x <- basic.stats(obj)
 Nm <- ( (1 / x[["perloc"]][["Fst"]]) - 1) / 4
 
@@ -806,7 +807,7 @@ knitr::kable(Nm_df, "html", digits = 4) %>%
 ```
 
 ### Cavalli-Sforza and Edwards Chord distance [@cavallisforza_PhylogeneticAnalysisModels_1967]
-```{r cavalli-sforza_1, fig.width = 10, dpi=300, cache=T}
+```{r cavalli-sforza_1, fig.width = 10, dpi=300, cache=T, include=T}
 ## https://groups.google.com/forum/##!topic/poppr/vEQ8vb2oObQ
 
 ## create hierfstat input file
@@ -859,7 +860,7 @@ genet.tree.upgma <- fungen(obj_hier[1])
 ```{r fig.width = 10, dpi=300, cache=T}
 # Create tree
 tree_upgma <- genet.tree.upgma(obj_hier[-1])
-num_boot <- 100
+num_boot <- 1000
 tree_upgma$node.label <- boot.phylo(phy = tree_upgma, x = obj_hier[-1],
                                     FUN = genet.tree.upgma, B = num_boot
                                     , jumble = FALSE
@@ -867,7 +868,7 @@ tree_upgma$node.label <- boot.phylo(phy = tree_upgma, x = obj_hier[-1],
                                     )
 ```
 
-```{r fig.width = 10, dpi=300, cache=T}
+```{r fig.width = 10, dpi=300, cache=T, include=T}
 # Display tree
 nodelabs <- (100 / num_boot) *  tree_upgma$node.label
 nodelabs[nodelabs < 50] <- NA
@@ -880,7 +881,7 @@ title(main = "Dendrogram based on Cavalli-Sforza and Edwards Chord distance",
 axisPhylo(side = 1)
 ```
 
-```{r fig.width = 10, dpi=300, cache=T}
+```{r fig.width = 10, dpi=300, cache=T, eval=F}
 # Create tree
 tree_nj <- genet.tree.nj(obj_hier[-1])
 num_boot <- 100 # number of bootstraps
@@ -891,7 +892,7 @@ tree_nj$node.label <- boot.phylo(phy = tree_nj, x = obj_hier[-1],
 )
 ```
 
-```{r fig.width = 10, dpi=300, cache=T}
+```{r fig.width = 10, dpi=300, cache=T, eval=F}
 # Display tree
 nodelabs <- (100 / num_boot) *  tree_nj$node.label
 nodelabs[nodelabs < 50] <- NA # hide values below 50
@@ -908,7 +909,7 @@ add.scale.bar(lwd = 2, length = 0.005, x = 0.01, y=1)
 ```
 
 ### Nei distance [@nei_EstimationAverageHeterozygosity_1978]
-```{r nei_hierfstat, cache=T}
+```{r nei_hierfstat, cache=T, include=T}
 ## create nei distance table
 nei <- genet.dist(obj, method = "Ds")
 nei <- as.matrix(nei)
@@ -934,7 +935,7 @@ tree_upgma <- aboot(obj, strata = ~Country/Pop, sample = 1000,
                     tree = "upgma",showtree = F)
 ```
 
-```{r fig.width = 10, dpi=300, cache=T}
+```{r fig.width = 10, dpi=300, cache=T, include=T}
 nodelabs <- round(tree_upgma$node.label, 2)
 plot.phylo(tree_upgma, cex = 1, font = 2, adj = 0, xpd = TRUE, 
 label.offset = 0.0001,
@@ -947,12 +948,12 @@ title(main = "Dendrogram based on Nei's standard genetic distance",
 axisPhylo(side = 1)
 ```
 
-```{r fig.width = 10, dpi=300, cache=T}
+```{r fig.width = 10, dpi=300, cache=T, eval=F}
 tree_nj <- aboot(obj, strata = ~Country/Pop, sample = 1000, cutoff = 50,
                  distance = "nei.dist", tree = "nj", showtree = F)
 ```
 
-```{r fig.width = 10, dpi=300, cache=T}
+```{r fig.width = 10, dpi=300, cache=T, eval=F}
 nodelabs <- round(tree_nj$node.label, 2)
 plot.phylo(tree_nj, cex = 1, font = 2, adj = 0, xpd = TRUE, 
 label.offset = 0.0001)
@@ -964,7 +965,7 @@ add.scale.bar(lwd = 2, length = 0.01, x = 0.01, y=1)
 ```
 
 ### Principal Component Analysis (PCA)
-```{r pca, dpi=96, cache=T, fig.width=5, fig.height=3}
+```{r pca, dpi=96, cache=T, fig.width=5, fig.height=3, include=T}
 ## In case there are missing data, replace with mean
 X <- tab(obj, freq = TRUE, NA.method = "mean") 
 
@@ -973,7 +974,7 @@ pca.obj <- dudi.pca(X, scale = FALSE, scannf = FALSE, nf = 3)
 fviz_eig(pca.obj, main = "Scree plot of PCA")
 ```
 
-```{r pca_plots, fig.width=10, dpi=300, cache=T}
+```{r pca_plots, fig.width=10, dpi=300, cache=T, include=T}
 ggord(pca.obj, pop(obj), arrow = NULL, txt = NULL, 
       grp_title="Populations", ellipse=T, poly=FALSE, size=2, 
       alpha=.8, coord_fix=F, axes = c("1", "2")) +
@@ -1007,13 +1008,13 @@ add.scatter.eig(pca.obj$eig[1:20], nf=3,xax=1,yax=2)
 ```
 
 ### Correspondence Analysis
-```{r ca, dpi=96, cache=T, fig.width=5, fig.height=3}
+```{r ca, dpi=96, cache=T, fig.width=5, fig.height=3, include=T}
 ca1 <- dudi.coa(tab(obj, freq = TRUE, NA.method = "mean"), scannf=FALSE,nf=3) 
 
 fviz_eig(ca1, main = "Scree plot of CA")
 ```
 
-```{r ca_plots, fig.width=10, dpi=300, cache=T}
+```{r ca_plots, fig.width=10, dpi=300, cache=T, include=T}
 # devtools::install_github('fawda123/ggord')
 
 ggord(ca1, pop(obj), arrow = NULL, txt = NULL, 
@@ -1039,27 +1040,27 @@ ggord(ca1, pop(obj), arrow = NULL, txt = NULL,
 ```
 
 ### AMOVA
-```{r amova, cache=T}
+```{r amova, cache=T, include=T}
 # setPop(obj) <- ~Country
 
 poppr.amova(obj, ~Country, within = F)
 ```
 
 ### Hierarchical AMOVA
-```{r amova_within, cache=T}
+```{r amova_within, cache=T, include=T}
 # setPop(obj) <- ~Country/Pop
 
 poppr.amova(obj, ~Country/Pop, within = F)
 ```
 
 ### Hierarchical AMOVA - within variation included (as calculated using Arlequin)
-```{r amova_arlequin, cache=T}
+```{r amova_arlequin, cache=T, include=T}
 ### Hierarchical AMOVA - within variation included (as calculated using Arlequin)
 poppr.amova(obj, ~Country/Pop, within = T)
 ```
 
 ### IBD
-```{r ibd, fig.height=5, fig.width=5, cache=T, dpi=300}
+```{r ibd, fig.height=5, fig.width=5, cache=T, dpi=300, include=T}
 
 #change hierarchy to country level
 setPop(obj) <- ~Country
@@ -1103,7 +1104,7 @@ title("Isolation by distance")
 setPop(obj) <- ~Country/Pop
 ```
 
-```{r}
+```{r eval=f}
 library(ecodist)
 
 mantel(Dgen ~ Dgeo)
@@ -1256,10 +1257,10 @@ setPop(obj) <- ~Country/Pop
 ```
 
 
-# Ne estimation
+# Effective Population Size (Ne) estimation
 Estimate Ne from linkage disequilibrium based on Pearson correlation approximation following [@waples_EstimatingContemporaryEffective_2016].
 
-ATTN! Check if some loci should be removed in case of LD
+<!-- # ATTN! Check if some loci should be removed in case of LD -->
 ```{r}
 ## Convert input file
         loci <- genind2loci(obj)
@@ -1269,202 +1270,13 @@ ATTN! Check if some loci should be removed in case of LD
 ```        
 
 ```{r}
-#' @title ldNe
-#' @description Estimate Ne from linkage disequilibrium based on Pearson 
-#'   correlation approximation following Waples et al 2016. Adapted from code 
-#'   by R. Waples and W. Larson.
-#'
-#' @param g a \linkS4class{gtypes} object.
-#' @param maf.threshold smallest minimum allele frequency permitted to include 
-#'   a locus in calculation of Ne.
-#' @param by.strata apply the \code{maf.threshold} by strata. If \code{TRUE}
-#'   then any locus that is below this threshold in any strata will be removed 
-#'   from the calculation of Ne for every stratum. Otherwise, loci are removed 
-#'   only if they are below the \code{maf.threshold} in the stratum for which 
-#'   Ne is calculated.
-#' @param ci central confidence interval.
-#'
-#' @return a numeric matrix with one row per strata and the following columns:
-#' \describe{
-#'  \item{\code{S}}{harmonic mean of sample size across pairwise comparisons of loci}
-#'  \item{\code{num.comp}}{number of pairwise loci comparisons used}
-#'  \item{\code{mean.rsq}}{mean r^2 over all loci}
-#'  \item{\code{mean.E.rsq}}{mean expected r^2 over all loci}
-#'  \item{\code{Ne}}{estimated Ne}
-#'  \item{\code{param.lci, param.uci}}{parametric lower and upper CIs}
-#' }
-#' 
-#' @references Waples, R.S. 2006. A bias correction for estimates of effective population 
-#'   size based on linkage disequilibrium at unlinked gene loci. 
-#'   Conservation Genetics 7:167-184. \cr\cr
-#'   Waples RK, Larson WA, and Waples RS. 2016. Estimating contemporary 
-#'   effective population size in non-model species using linkage 
-#'   disequilibrium across thousands of loci. Heredity 117:233-240; 
-#'   doi:10.1038/hdy.2016.60
-#'
-#' @author Eric Archer \email{eric.archer@@noaa.gov}
-#' 
-#' @importFrom parallel mclapply detectCores
-#' @importFrom stats cor qchisq
-#' @export
-#' 
-ldNe <- function(g, maf.threshold = 0, by.strata = FALSE, ci = 0.95) {
-  if(ploidy(g) != 2) stop("'g' must have diploid data")
-  
-  # remove non-biallelic loci
-  num.alleles <- numAlleles(g)
-  biallelic <- names(num.alleles)[num.alleles <= 2]
-  if(length(biallelic) == 0) {
-    warning("No loci are biallelic. NULL returned.", call. = FALSE)
-    return(NULL)
-  }
-  g <- g[, biallelic, ]
-  
-  # remove loci if below maf threshold for any stratum
-  if(maf.threshold > 0 & by.strata) {
-    maf.g <- maf(g, by.strata = TRUE)
-    above.thresh <- which(apply(maf.g, 2, function(x) all(x >= maf.threshold)))
-    if(length(above.thresh) < 2) {
-      warning(
-        paste0("Fewer than two loci are above 'maf.threshold' in any stratum. NULL returned."),
-        call. = FALSE
-      )
-      return(NULL)
-    }
-    g <- g[, above.thresh, ]
-  }
-  
-  # calculate Pearson r-squared between a pair of loci
-  compLoc <- function(i, loc.pairs, mat) {
-    pair.mat <- mat[, loc.pairs[, i]]
-    pair.mat <- pair.mat[complete.cases(pair.mat), , drop = FALSE]
-    rsq <- cor(pair.mat[, 1], pair.mat[, 2], method = "pearson") ^ 2
-    S <- nrow(pair.mat)
-    c(S = S, rsq = rsq)
-  }
-  
-  # Eqn 1.7: calculate Ne
-  calcNe <- function(S, Rsq.drift) {
-    if(S > 29) {
-      root.term <- 1 / 9 - 2.76 * Rsq.drift
-      if(root.term < 0) root.term <- 0
-      (1 / 3 + sqrt(root.term)) / (2 * Rsq.drift)
-    } else {
-      root.term <- 0.308 ^ 2 - 2.08 * Rsq.drift
-      if(root.term < 0) root.term <- 0
-      (0.308 + sqrt(root.term)) / (2 * Rsq.drift)
-    }
-  }
-  
-  # calculate Ne by strata
-  ne.smry <- sapply(strataSplit(g), function(g.st) {
-    # remove loci below MAF threshold
-    if(maf.threshold > 0) {
-      above.thresh <- which(maf(g.st) >= maf.threshold)
-      if(length(above.thresh) < 2) {
-        warning(
-          paste0("Fewer than two loci are above 'maf.threshold' in '", strataNames(g.st), "'"),
-          call. = FALSE
-        )
-        return(NULL)
-      }
-      g.st <- g.st[, above.thresh, ]
-    }
-    
-    # create list of coded numeric matrices for each stratum
-    g.mat <- as.matrix(g.st, ids = FALSE, strata = FALSE)
-    mat <- matrix(nrow = nInd(g.st), ncol = nLoc(g.st))
-    a1.i <- seq(1, ncol(g.mat), by = 2)
-    for(j in 1:length(a1.i)) {
-      a1 <- a1.i[j]
-      mat.j <- g.mat[, c(a1, a1 + 1), drop = FALSE]
-      alleles <- sort(unique(mat.j))
-      for(i in 1:nrow(mat.j)) mat[i, j] <- sum(mat.j[i, ] == alleles[1])
-    }
-    
-    # remove loci that are constant
-    mat <- mat[, apply(mat, 2, function(x) var(x) > 0), drop = FALSE]
-    if(ncol(mat) < 2) {
-      warning(
-        paste0("Fewer than two loci have more than one genotype in '", strataNames(g.st), "'"),
-        call. = FALSE
-      )
-      return(NULL)
-    }
-    
-    # calculate correlation r-squared (rsq) between pairs of loci
-    loc.pairs <- combn(ncol(mat), 2)
-    loc.comp.mat <- mclapply(1:ncol(loc.pairs), compLoc, loc.pairs = loc.pairs, mat = mat, mc.cores = detectCores() - 1)
-    loc.comp.mat <- do.call(cbind, loc.comp.mat)
-    to.keep <- apply(loc.comp.mat, 2, function(x) all(!is.na(x)))
-    if(sum(to.keep) == 0) stop("all loci have missing data")
-    loc.comp.mat <- loc.comp.mat[, to.keep, drop = FALSE]
-    
-    # cl <- .setupClusters()
-    # loc.comp.mat <- tryCatch({
-    #   if(!is.null(cl)) {
-    #     parSapply(cl, 1:ncol(loc.pairs), compLoc, loc.pairs = loc.pairs, mat = mat)
-    #   } else {
-    #     sapply(1:ncol(loc.pairs), compLoc, loc.pairs = loc.pairs, mat = mat)
-    #   }
-    # }, finally = if(!is.null(cl)) stopCluster(cl))
-    
-    S <- loc.comp.mat["S", ]
-    # Eqn 1.1: expected r-squared
-    E.rsq <- ifelse(S > 29, (1 / S) + (3.19 / S ^ 2), 0.0018 + (0.907 / S) + (4.44 / S ^ 2))
-    # sample size corrected r-squared
-    rsq <- loc.comp.mat["rsq", ] * ((S / (S - 1)) ^ 2)
-    # Eqn 1.4
-    w <- S ^ 2
-    # Eqn 1.5
-    W <- sum(w)
-    mean.rsq <- sum(w * rsq) / W
-    # Eqn 1.6
-    Rsq.drift <- rsq - E.rsq
-    # Eqn 1.10: R-squared prime.0 for Ne.0 
-    Rsq.drift.0 <- sum(Rsq.drift * w) / W
-    # harmonic mean of S
-    N <- ncol(loc.comp.mat)
-    S.harm.mean <- N / sum(1 / S)
-    # initial Ne.0
-    ne0 <- calcNe(S.harm.mean, Rsq.drift.0)
-    
-    # Eqn 1.11: R-squared prime weights
-    wt <- S ^ 2 / (S + 3 * ne0) ^ 2
-    # Eqn 1.12: weighted R-squared prime
-    Rsq.drift <- sum(wt * Rsq.drift) / sum(wt)
-    
-    # mean expected r-squared
-    mean.E.rsq <- sum(w * E.rsq) / W
-    
-    # calculate CI
-    lci.p <- (1 - ci) / 2
-    uci.p <- 1 - lci.p
-    Rsq.drift.lci <- mean.rsq * N / qchisq(lci.p, N) - mean.E.rsq
-    Rsq.drift.uci <- mean.rsq * N / qchisq(uci.p, N) - mean.E.rsq
-    
-    ne <- calcNe(S.harm.mean, Rsq.drift)
-    param.lci <- calcNe(S.harm.mean, Rsq.drift.lci)
-    param.uci <- calcNe(S.harm.mean, Rsq.drift.uci)
-    if(ne < 0) ne <- Inf
-    if(param.lci < 0) param.lci <- Inf
-    if(param.uci < 0) param.uci <- Inf
-    
-    c(
-      S = S.harm.mean, num.comp = N, mean.rsq = mean.rsq, 
-      mean.E.rsq = mean.E.rsq, Ne = ne, param.lci = param.lci, 
-      param.uci = param.uci
-    )
-  }, USE.NAMES = TRUE, simplify = FALSE)
-  ne.smry <- ne.smry[!sapply(ne.smry, is.null)]
-  do.call(rbind, ne.smry)
-}
+source("ldNe.R")
 ```
 
 ```{r}
 library(parallel)
 
-Ne_0 <- ldNe(obj_g, maf.threshold = 0, by.strata = F, ci = 0.95)
+Ne_0 <- ldNe(obj_g, maf.threshold = 0.01, by.strata = F, ci = 0.95)
 Ne_0 <- as.data.frame(Ne_0)
 
 Ne_0 <- add_column(Ne_0, population = popNames(obj), .before = "S")
@@ -1472,34 +1284,44 @@ Ne_0
 ```
 
 ```{r}
-Ne_0.05 <- ldNe(obj_g, maf.threshold = 0.01, by.strata = F, ci = 0.95)
+Ne_0.05 <- ldNe(obj_g, maf.threshold = 0.05, by.strata = F, ci = 0.95)
 Ne_0.05 <- as.data.frame(Ne_0.05)
 
 Ne_0.05 <- add_column(Ne_0.05, population = popNames(obj), .before = "S")
 Ne_0.05
 ```
 
-```{r}
-knitr::kable(Ne_0, format = "html", digits = 3) %>% 
+```{r, include=T}
+knitr::kable(Ne_0, format = "html", digits = 3,
+             caption = "Effective Population Size - Maf=0.01") %>% 
   kable_styling(bootstrap_options = "striped", full_width = F)
 
-# ggplot(Ne, aes(x=population, y=Ne)) +
-#   geom_point(stat = "identity", 
-#            color="black", fill = "lightgrey",
-#            size = 2) +
-#   scale_y_continuous(breaks = seq(0, 10000, 500)) +
-#   geom_errorbar(aes(ymin=param.lci, ymax=param.uci),
-#                 width = .3) +
-#   ggtitle("Ne (95% CIs)") +
-#   theme_classic()
+knitr::kable(Ne_0.05, format = "html", digits = 3,
+             caption = "Effective Population Size - Maf=0.05") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+ggplot(Ne_0, aes(x=population, y=Ne)) +
+  geom_point(stat = "identity",
+           color="black", fill = "lightgrey",
+           size = 2) +
+  # scale_y_continuous(breaks = seq(0, 10000, 500)) +
+  geom_errorbar(aes(ymin=param.lci, ymax=param.uci),
+                width = .3) +
+  ggtitle("Effective Population Size per Cohort(95% CIs, Maf=0.01)") +
+  theme_classic()
+
+ggplot(Ne_0.05, aes(x=population, y=Ne)) +
+  geom_point(stat = "identity",
+           color="black", fill = "lightgrey",
+           size = 2) +
+  # scale_y_continuous(breaks = seq(0, 10000, 500)) +
+  geom_errorbar(aes(ymin=param.lci, ymax=param.uci),
+                width = .3) +
+  ggtitle("Effective Population Size per Cohort (95% CIs, Maf=0.05)") +
+  theme_classic()
 ```
 
-```{r}
-library(parallel)
-
-ldNe(obj_g,maf.threshold = 0, by.strata = F, ci = 0.95)
-```
-
+# Effective Population Size (Ne) estimation after removal of SNPs in LD
 ```{r}
 to.remove <- as.vector(LD_sig_intersect$locus1[-3])
 
@@ -1517,20 +1339,51 @@ obj_no_LD <- obj[,loc = setdiff(loci_int, to.remove)]
 ```
 
 ```{r}
-Ne_0_no_LD <- ldNe(obj_g_no_LD, maf.threshold = 0, by.strata = F, ci = 0.95)
+Ne_0_no_LD <- ldNe(obj_g_no_LD, maf.threshold = 0.01, by.strata = F, ci = 0.95)
 Ne_0_no_LD <- as.data.frame(Ne_0_no_LD)
 
 Ne_0_no_LD <- add_column(Ne_0_no_LD, population = popNames(obj), .before = "S")
 Ne_0_no_LD
 ```
 
-### NeEstimator
+```{r}
+Ne_0.05_no_LD <- ldNe(obj_g, maf.threshold = 0.05, by.strata = F, ci = 0.95)
+Ne_0.05_no_LD <- as.data.frame(Ne_0.05_no_LD)
 
+Ne_0.05_no_LD <- add_column(Ne_0.05_no_LD, population = popNames(obj), .before = "S")
+Ne_0.05_no_LD
+```
 
-# Notes
+```{r, include=T}
+knitr::kable(Ne_0_no_LD, format = "html", digits = 3,
+             caption = "Effective Population Size - Maf=0.01") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F)
 
-- Some SNPs are only typed for the greek populations, and were not included in this
-analysis. They should be investigated further.
+knitr::kable(Ne_0.05_no_LD, format = "html", digits = 3,
+             caption = "Effective Population Size - Maf=0.05") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+ggplot(Ne_0_no_LD, aes(x=population, y=Ne)) +
+  geom_point(stat = "identity",
+           color="black", fill = "lightgrey",
+           size = 2) +
+  # scale_y_continuous(breaks = seq(0, 10000, 500)) +
+  geom_errorbar(aes(ymin=param.lci, ymax=param.uci),
+                width = .3) +
+  ggtitle("Effective Population Size per Cohort (95% CIs, Maf=0.01)") +
+  theme_classic()
+
+ggplot(Ne_0.05_no_LD, aes(x=population, y=Ne)) +
+  geom_point(stat = "identity",
+           color="black", fill = "lightgrey",
+           size = 2) +
+  # scale_y_continuous(breaks = seq(0, 10000, 500)) +
+  geom_errorbar(aes(ymin=param.lci, ymax=param.uci),
+                width = .3) +
+  ggtitle("Effective Population Size per Cohort (95% CIs, Maf=0.05)") +
+  theme_classic()
+```
+
 
 # Reproducibility
 ```{r reproducibility}
