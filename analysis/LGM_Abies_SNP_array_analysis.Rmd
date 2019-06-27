@@ -587,7 +587,7 @@ LD_list <- lapply(loci_list,
            lapply(genetics::LD)
 ```
 
-```{r}
+```{r, include=T}
 LD_list_df <- 
         lapply(LD_list,
                function(x)x$`P-value`)
@@ -673,11 +673,12 @@ LD_sig_df
 ```
 
 ```{r}
-setwd("../results")
+# setwd("../results")
 
 for(i in 1:length(LD_list_df.long))
-write.csv(LD_list_df.long[[i]], file = paste(popNames(obj)[i], 
-                                       "LD.csv", sep = "_"))
+write.csv(LD_list_df.long[[i]], 
+          file = paste("../results/", popNames(obj)[i],
+                       "_LD.csv", sep = ""))
 
 # reset pop structure
 setPop(obj) <- ~Country/Pop
@@ -687,12 +688,12 @@ LD between all pairs of loci was tested seperately for all three cohorts (DE, GR
 
 The Holm-Bonferroni method was employed to account for multiple testing.
 
-Significant LD was detected on 131 loci for the German cohort, 80 loci for the Greek cohort, and 104 loci for the Slovenian cohort.
+Significant LD was detected on 113 loci for the German cohort, 78 loci for the Greek cohort, and 83 loci for the Slovenian cohort.
 
 Nine pairs of SNPs (one on different contigs, eight on the same contig), exhibited significant LD across all cohorts.
 
 ### Hardy - Weinberg equilibrium
-```{r HWE, fig.width=9, fig.height=20, dpi=300, cache=TRUE}
+```{r HWE, fig.width=9, fig.height=20, dpi=300, cache=TRUE, include=T}
 hw.obj <- seppop(obj, drop=T) %>% 
   lapply(hw.test, B = 0)
 ## seppop: calculates p-value for each locus of every pop
@@ -727,11 +728,11 @@ levelplot(t(hw.mat.adj), aspect = "fill",
 # correction (1000 permutations)") %>%
 #  kable_styling(bootstrap_options = "striped", full_width = F)
 
-setwd("../results")
+# setwd("../results")
 
 for(i in 1:length(hw.obj.df))
-write.csv(hw.obj.df[[i]], file = paste(popNames(obj)[i], 
-                                       "HWE.csv", sep = "_"))
+write.csv(hw.obj.df[[i]], file = paste("../results/", popNames(obj)[i], 
+                                       "_HWE.csv", sep = ""))
 ```
 
 ```{r eval=F}
@@ -939,7 +940,7 @@ tree_upgma <- aboot(obj, strata = ~Country/Pop, sample = 1000,
 nodelabs <- round(tree_upgma$node.label, 2)
 plot.phylo(tree_upgma, cex = 1, font = 2, adj = 0, xpd = TRUE, 
 label.offset = 0.0001,
-tip.color = c(rep("blue", 2), rep("red", 2), rep("green", 2)) 
+# tip.color = c(rep("blue", 2), rep("red", 2), rep("green", 2)) 
 )
 nodelabels(nodelabs, adj = c(1.3, -0.5), frame = "n", cex = 0.8, 
 font = 3, xpd = TRUE)
@@ -1111,17 +1112,17 @@ mantel(Dgen ~ Dgeo)
 ```
 
 
-### Structure
+<!-- ### Structure -->
 
-#### 1000 Burn-in iterations, 5000 MCMC repititions
-#### ATTN! A lower than optimal number of repititions was used, due to computational constrains.
-#### Repeating the analysis using a higher number of repitions is required to ensure its robustness.
-```{r}
+<!-- #### 1000 Burn-in iterations, 5000 MCMC repititions -->
+<!-- #### ATTN! A lower than optimal number of repititions was used, due to computational constrains. -->
+<!-- #### Repeating the analysis using a higher number of repitions is required to ensure its robustness. -->
+```{r, eval=F}
 #change hierarchy
 setPop(obj) <- ~Country/Pop
 ```
 
-```{r structure_runs, eval=FALSE, cache=T, include=T}
+```{r structure_runs, eval=FALSE, cache=T, eval=F}
 
 ## Convert input file
         loci <- genind2loci(obj)
@@ -1153,8 +1154,8 @@ struct <- structureRun(obj_g, k = 2:6, num.k.rep = 5,
 
 ```
 
-#### Tests for optimal K
-```{r evanno, cache=T}
+<!-- #### Tests for optimal K -->
+```{r evanno, cache=T, eval=F}
 ## read structure runs from pophelper
 sfiles <- list.files(path = "../results/gtypes.created.on.2019.04.27.21.33.22.structureRun/",
                      pattern = "out_f", full.names = T, recursive = T)
@@ -1168,12 +1169,12 @@ p <- evannoMethodStructure(data=sr1,exportplot=F,returnplot=T,
                            returndata=F,basesize=12,linesize=0.7)
 ```
 
-```{r evanno2, cache=T, dpi=300, fig.width=10} 
+```{r evanno2, cache=T, dpi=300, fig.width=10, eval=F} 
 grid.arrange(p)
 ```
 
 
-```{r barplots-structure, dpi=300, cache=T, fig.width=10}
+```{r barplots-structure, dpi=300, cache=T, fig.width=10, eval=F}
 ## clumpp through pophelper
 ## clumppExport(qlist=slist[16:20], useexe=T)
 
@@ -1244,14 +1245,14 @@ p3 <- plotQ(slist[6],returnplot=T,exportplot=F,quiet=T,basesize=11,
 ## grid.arrange(p3$plot[[1]])
 ```
 
-```{r barplots-structure2, cache=T}
+```{r barplots-structure2, cache=T, eval=F}
 ## A new chunk was created for plotting to avoid producing an empty plot
 ## https://support.rstudio.com/hc/en-us/community/posts/239529128-Notebooks-grid-newpage
 grid.arrange(p2$plot[[1]])
 grid.arrange(p3$plot[[1]])
 ```
 
-```{r}
+```{r, eval=F}
 #reset hierarchy
 setPop(obj) <- ~Country/Pop
 ```
@@ -1307,7 +1308,7 @@ ggplot(Ne_0, aes(x=population, y=Ne)) +
   # scale_y_continuous(breaks = seq(0, 10000, 500)) +
   geom_errorbar(aes(ymin=param.lci, ymax=param.uci),
                 width = .3) +
-  ggtitle("Effective Population Size per Cohort(95% CIs, Maf=0.01)") +
+  ggtitle("Effective Population Size per Cohort (95% CIs, Maf=0.01)") +
   theme_classic()
 
 ggplot(Ne_0.05, aes(x=population, y=Ne)) +
@@ -1386,7 +1387,7 @@ ggplot(Ne_0.05_no_LD, aes(x=population, y=Ne)) +
 
 
 # Reproducibility
-```{r reproducibility}
+```{r reproducibility, include=T}
 devtools::session_info()
 ```
 
