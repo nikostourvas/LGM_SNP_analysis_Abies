@@ -187,15 +187,15 @@ info <- as.data.frame(info[,-ncol(info)])
 
 info$locus <- rownames(info)
 
-info <- gather(info, key = pop, value = missing_data_freq, -locus)
+info <- gather(info, key = pop, value = missing_data, -locus)
 
 mis <- info %>% 
-        ggplot(aes(x=locus, y=missing_data_freq)) +
+        ggplot(aes(x=locus, y=missing_data)) +
         geom_bar(stat = "identity") +
         geom_hline(yintercept = 0.10, colour = "red") +
         theme(axis.text.x = element_text(colour = NA),
               axis.ticks = element_line(colour = NA)) +
-        ggtitle("Missing data frequency by cohort") +
+        ggtitle("Missing data by cohort") +
         facet_wrap(~pop, nrow=2 )
 
 mis
@@ -298,15 +298,15 @@ info <- as.data.frame(info[,-ncol(info)])
 
 info$locus <- rownames(info)
 
-info <- gather(info, key = pop, value = missing_data_freq, -locus)
+info <- gather(info, key = pop, value = missing_data, -locus)
 
 mis <- info %>% 
-        ggplot(aes(x=locus, y=missing_data_freq)) +
+        ggplot(aes(x=locus, y=missing_data)) +
         geom_bar(stat = "identity") +
         geom_hline(yintercept = 0.10, colour = "red") +
         theme(axis.text.x = element_text(colour = NA),
               axis.ticks = element_line(colour = NA)) +
-        ggtitle("Missing data frequency by cohort after filtering") +
+        ggtitle("Missing data by cohort after filtering") +
         facet_wrap(~pop, nrow=2 )
 
 mis
@@ -468,7 +468,7 @@ ggplot(aes(x = population, y = uHe) ) +
   theme_classic()
 
 ```
-Distribution of uHe is not normal, so 95% CIs of previews graph are probably misleading
+Distribution of uHe is not normal, so 95% CIs of previous graph are probably misleading
 
 ```{r}
 Fis <- as.data.frame(Fis[-nrow(Fis), 1] )
@@ -1262,6 +1262,8 @@ setPop(obj) <- ~Country/Pop
 Estimate Ne from linkage disequilibrium based on Pearson correlation approximation following [@waples_EstimatingContemporaryEffective_2016].
 
 <!-- # ATTN! Check if some loci should be removed in case of LD -->
+
+## Effective Population Size (Ne)
 ```{r}
 ## Convert input file
         loci <- genind2loci(obj)
@@ -1322,7 +1324,7 @@ ggplot(Ne_0.05, aes(x=population, y=Ne)) +
   theme_classic()
 ```
 
-# Effective Population Size (Ne) estimation after removal of SNPs in LD
+## Effective Population Size (Ne) estimation after removal of SNPs in LD
 ```{r}
 to.remove <- as.vector(LD_sig_intersect$locus1[-3])
 
