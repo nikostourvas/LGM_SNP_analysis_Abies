@@ -21,7 +21,7 @@ always_allow_html: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(include = FALSE)
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 ```
 
 ```{r libraries, echo=TRUE}
@@ -63,7 +63,7 @@ knitr::opts_chunk$set(include = FALSE)
 
 
 <!-- # Import csv -->
-```{r import_csv}
+```{r import_csv, cache=T}
 snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
                 header = T, 
                 na.strings = c("?", "Uncallable", "Bad")
@@ -77,7 +77,7 @@ snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv",
 <!-- ## Transform sample names -->
 <!-- #### This will allow hierarchical analysis when applicable -->
 <!-- #### Country / Species / Pop / Plot -->
-```{r}
+```{r, cache=T}
 snp <- snp %>% 
   mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
   mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
@@ -89,7 +89,7 @@ snp <- snp %>%
 
 
 <!-- ## Remove samples that consistently do not amplify -->
-```{r remove_bad}
+```{r remove_bad, cache=T}
 # 
 # snp_fil <- snp %>% 
 #         filter(snpa != "Bad")
@@ -98,7 +98,7 @@ snp <- snp %>%
 ```
 
 <!-- ### Create a df following the guidelines of the loci format -->
-```{r}
+```{r, cache=T}
 snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
 # snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
 snp_loci_format <- snp_loci_format[,-1]
@@ -107,7 +107,7 @@ rownames(snp_loci_format) <- snp[,1]
 # snp_loci_format
 ```
 
-```{r}
+```{r, cache=T}
 ## Add a second column for population
 
 pop1 <- replicate(124, "DE_AAL_A_1")
@@ -138,7 +138,7 @@ snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
 ```
 
 <!-- ## Create genind object -->
-```{r}
+```{r, cache=T}
 library(pegas)
 
 data <- as.loci(snp_loci_format, 
@@ -151,7 +151,7 @@ obj_origin <- loci2genind(data,)
 ```
 
 <!-- ### stratify data set -->
-```{r test}
+```{r test, cache=T}
 strata_df <- as.data.frame(snp_loci_format$pop)
 colnames(strata_df) <- "strata"
 strata_df <- separate(strata_df, col = strata, sep="_", 
@@ -168,7 +168,7 @@ obj_origin
 # Data filtering
 
 <!-- ### Check for missing data -->
-```{r missing, cache=F, fig.width=10, dpi=300, eval=F}
+```{r missing, cache=T, fig.width=10, dpi=300, eval=F}
 capture.output(
 info_table(obj_origin, type = "missing", plot = TRUE, plotlab = F),
 file='NUL') 
@@ -179,7 +179,7 @@ div <- summary(obj_origin)
 # paste("Total missing data is",  round(div$NA.perc, digits = 2), "%", sep = " ")
 ```
 
-```{r, include=T}
+```{r, include=T, fig.asp=1}
 info <- t(
   info_table(obj_origin, type = "missing", plot = F, plotlab = F) )
 
@@ -196,7 +196,7 @@ mis <- info %>%
         theme(axis.text.x = element_text(colour = NA),
               axis.ticks = element_line(colour = NA)) +
         ggtitle("Missing data by cohort") +
-        facet_wrap(~pop, nrow=2 )
+        facet_wrap(~pop, nrow=3 )
 
 mis
 ```
@@ -266,7 +266,8 @@ test <- seppop(obj) %>%
 
 
 ```{r maf2}
-maf <- 0.01
+maf <- 5 / nInd(obj)
+maf
 
 obj <- informloci(obj, MAF = maf)
 ```
@@ -284,13 +285,15 @@ paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
 paste("SNP loci with minor allele frequency <", maf)
 ```
 
+MAF corresponds to 5 samples (i.e. an allele has to be present in 5 or more individuals, or else it is discarded)
+
 ### Data set details after data filtering:
 ```{r include=T}
 
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r, include=T}
+```{r, include=T, fig.asp=1}
 info <- t(
   info_table(obj, type = "missing", plot = F, plotlab = F) )
 
@@ -307,10 +310,21 @@ mis <- info %>%
         theme(axis.text.x = element_text(colour = NA),
               axis.ticks = element_line(colour = NA)) +
         ggtitle("Missing data by cohort after filtering") +
-        facet_wrap(~pop, nrow=2 )
+        facet_wrap(~pop, nrow=3 )
 
 mis
 ```
+The filters applied, reduce the data set to loci with missing data < 10% overall. As shown above, loci within cohorts might exceed this limit.
+
+```{r}
+library(dartR)
+obj_light <- gi2gl(obj) # convert to genlight via dartR
+
+glPlot(obj_light, posi="topleft")
+```
+
+
+
 
 # Summary statistics
 ```{r summary_statistics, cache=T}
@@ -443,9 +457,9 @@ p <- ggplot(uHe2, aes(x=population, y=uHe, fill = age)) +
            # fill = c("white", "lightgrey"),
            width = .6) +
   scale_y_continuous(breaks = seq(0, 0.3, 0.05)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper),
-                width = .3) +
-  ggtitle("uHe (95% CIs)") +
+  # geom_errorbar(aes(ymin=lower, ymax=upper),
+  #               width = .3) +
+  ggtitle("uHe") +
   theme_classic() +
   scale_fill_manual(values=c("white", "lightgrey") ) +
   theme(legend.position = "none")
@@ -494,7 +508,7 @@ ggplot(aes(x=population, y=Fis)) +
   theme_classic()
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+```{r dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -512,6 +526,59 @@ ggplot(all, aes(x=population, y=count) ) +
            width = .8) +
   geom_text(aes(label=count, vjust = 1.6)) +
   ggtitle("Total Number of alleles per population")
+```
+
+```{r, include=F, fig.width=10}
+temp <- seppop(obj_light) 
+  myFreq <- lapply(temp, glMean)
+  
+  par(mfrow = c(3, 3)) 
+  
+  freq_plots <- lapply(myFreq, function(x){
+                       hist(x, proba=TRUE, col="gold", xlab="Allele frequencies",
+  main="Distribution of (second) allele frequencies" ) 
+    }
+  )
+  
+  dev.off()
+
+#   hist(myFreq[[1]], proba=TRUE, col="gold", xlab="Allele frequencies",
+#   main="Distribution of (second) allele frequencies")
+# hist(myFreq[[2]], proba=TRUE, col="gold", xlab="Allele frequencies",
+#   main="Distribution of (second) allele frequencies")
+# hist(myFreq[[3]], proba=TRUE, col="gold", xlab="Allele frequencies",
+#   main="Distribution of (second) allele frequencies")
+# hist(myFreq[[4]], proba=TRUE, col="gold", xlab="Allele frequencies",
+#   main="Distribution of (second) allele frequencies")
+# hist(myFreq[[5]], proba=TRUE, col="gold", xlab="Allele frequencies",
+#   main="Distribution of (second) allele frequencies")
+# hist(myFreq[[6]], proba=TRUE, col="gold", xlab="Allele frequencies",
+#   main="Distribution of (second) allele frequencies")
+```
+
+#### Distribution of allele frequencies
+```{r, include=T, fig.asp=1.5}
+temp <- seppop(obj_light) 
+  myFreq <- lapply(temp, glMean)
+  myFreq <- lapply(myFreq, function(x){
+    c(x, 1-x)
+  })
+              
+  
+  par(mfrow = c(3, 2)) 
+  
+  hist(myFreq[[1]], proba=TRUE, col="darkseagreen3", xlab="Allele frequencies",
+main="DE_A", nclass=20)
+  hist(myFreq[[2]], proba=TRUE, col="darkseagreen3", xlab="Allele frequencies",
+main="DE_NR", nclass=20)
+  hist(myFreq[[3]], proba=TRUE, col="darkseagreen3", xlab="Allele frequencies",
+main="GR_A", nclass=20)
+  hist(myFreq[[4]], proba=TRUE, col="darkseagreen3", xlab="Allele frequencies",
+main="GR_NR", nclass=20)
+  hist(myFreq[[5]], proba=TRUE, col="darkseagreen3", xlab="Allele frequencies",
+main="SI_A", nclass=20)
+  hist(myFreq[[6]], proba=TRUE, col="darkseagreen3", xlab="Allele frequencies",
+main="SI_NR", nclass=20)
 ```
 
 ### Private alleles per cohort - level Country/Pop
@@ -1350,7 +1417,7 @@ Ne_0_no_LD
 ```
 
 ```{r}
-Ne_0.05_no_LD <- ldNe(obj_g, maf.threshold = 0.05, by.strata = F, ci = 0.95)
+Ne_0.05_no_LD <- ldNe(obj_g_no_LD, maf.threshold = 0.05, by.strata = F, ci = 0.95)
 Ne_0.05_no_LD <- as.data.frame(Ne_0.05_no_LD)
 
 Ne_0.05_no_LD <- add_column(Ne_0.05_no_LD, population = popNames(obj), .before = "S")

@@ -3,7 +3,7 @@ import.snp.abies <- function(threshold_loci, threshold_ind, maf){
 
 snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
                 header = T, 
-                na.strings = c("?", "Uncallable", "Bad")
+                na.strings = c("?", "Uncallable", "Bad", "Missing")
                 # ,stringsAsFactors = T
                 , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
 )

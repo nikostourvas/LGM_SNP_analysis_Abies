@@ -1,2 +1,5 @@
 library.bib
 *.html
+*cache
+*files
+*radiator*

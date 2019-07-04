@@ -4,31 +4,27 @@ author: "Nikos Tourvas"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 bibliography: library.bib
 output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    ## toc_float: yes
   html_notebook:
     code_folding: hide
     theme: united
     toc: yes
     toc_float: yes
     toc_depth: 3
-  html_document:
-    code_folding: hide
-    theme: united
-    toc: yes
-    ## toc_float: yes
   pdf_document:
     toc: yes
 always_allow_html: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(include = FALSE)
+knitr::opts_chunk$set(include = FALSE, cache = TRUE)
 ```
 
 # Case 1
-
-```{r}
-rm(obj)
-```
 
 <!-- # Import csv -->
 ```{r include=FALSE}
@@ -143,7 +139,7 @@ obj <- informloci(obj_origin, MAF = 0)
 ```
 
 <!-- ### Filter out missing data -->
-```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+```{r fig.width=10, cache=T, dpi=300, include=FALSE}
 threshold <- 0.10
 
 obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
@@ -160,7 +156,7 @@ maf <- 0.05
 obj <- informloci(obj, MAF = maf)
 ```
 
-### Data filtering thresholds
+### Data filtering thresholdss
 ```{r}
 paste("SNP loci:", threshold*100, 
       "% missing data across populations", sep=" ")
@@ -178,7 +174,7 @@ paste("SNP loci with minor allele frequency <", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, fig.width=5, fig.height=3, include=T, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -200,10 +196,6 @@ ggplot(all, aes(x=population, y=count) ) +
 
 # Case 2 - No MAF filter
 
-```{r}
-rm(list=ls())
-```
-
 <!-- # Import csv -->
 ```{r include=FALSE}
 snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
@@ -317,7 +309,7 @@ obj <- informloci(obj_origin, MAF = 0)
 ```
 
 <!-- ### Filter out missing data -->
-```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+```{r fig.width=10, cache=T, dpi=300, include=FALSE}
 threshold <- 0.10
 
 obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
@@ -352,7 +344,7 @@ paste("SNP loci with minor allele frequency =", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -373,10 +365,6 @@ ggplot(all, aes(x=population, y=count) ) +
 ```
 
 # Case 3 - Filter only extreme values
-
-```{r}
-rm(list=ls())
-```
 
 <!-- # Import csv -->
 ```{r include=FALSE}
@@ -491,8 +479,8 @@ obj <- informloci(obj_origin, MAF = 0)
 ```
 
 <!-- ### Filter out missing data -->
-```{r fig.width=10, cache=F, dpi=300, include=FALSE}
-threshold <- 0.5
+```{r fig.width=10, cache=T, dpi=300, include=FALSE}
+threshold <- 0.1
 
 obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
 
@@ -526,7 +514,7 @@ paste("SNP loci with minor allele frequency =", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -552,10 +540,6 @@ For the following 3 cases the missing data filter for SNP loci is applied for ea
 
 # Case 4
 
-```{r}
-rm(list=ls())
-```
-
 <!-- # Import csv -->
 ```{r include=FALSE}
 snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
@@ -669,7 +653,7 @@ obj <- informloci(obj_origin, MAF = 0)
 ```
 
 <!-- ### Filter out missing data -->
-```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+```{r fig.width=10, cache=T, dpi=300, include=FALSE}
 threshold <- 0.10
 
 obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
@@ -723,7 +707,7 @@ paste("SNP loci with minor allele frequency <", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -744,10 +728,6 @@ ggplot(all, aes(x=population, y=count) ) +
 ```
 
 # Case 5 - No MAF filter
-
-```{r}
-rm(list=ls())
-```
 
 <!-- # Import csv -->
 ```{r include=FALSE}
@@ -862,7 +842,7 @@ obj <- informloci(obj_origin, MAF = 0)
 ```
 
 <!-- ### Filter out missing data -->
-```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+```{r fig.width=10, cache=T, dpi=300, include=FALSE}
 threshold <- 0.10
 
 obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
@@ -918,7 +898,7 @@ paste("SNP loci with minor allele frequency =", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -939,10 +919,6 @@ ggplot(all, aes(x=population, y=count) ) +
 ```
 
 # Case 6 - Filter only extreme values
-
-```{r}
-rm(list=ls())
-```
 
 <!-- # Import csv -->
 ```{r include=FALSE}
@@ -1057,7 +1033,7 @@ obj <- informloci(obj_origin, MAF = 0)
 ```
 
 <!-- ### Filter out missing data -->
-```{r fig.width=10, cache=F, dpi=300, include=FALSE}
+```{r fig.width=10, cache=T, dpi=300, include=FALSE}
 threshold <- 0.5
 
 obj <- missingno(obj, type = "loci", cutoff = threshold, quiet = T)
@@ -1111,7 +1087,7 @@ paste("SNP loci with minor allele frequency =", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
-```{r cache=T, dpi=300, fig.width=5, fig.height=3}
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)

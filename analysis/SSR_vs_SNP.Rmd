@@ -183,7 +183,7 @@ paste(nInd(obj_SNP), "individuals", "and", nLoc(obj_SNP), "loci", sep=" ")
 library(popprxl)
 
 obj_SSR <- read.genalexcel(
-  "/../data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
+  "../data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
   sheet = "Abies",             # name of sheet where the genotypes reside
   genclone = F) 
 
@@ -466,9 +466,9 @@ table.value(table(dapc_SNP$assign, obj_SNP@pop), col.lab=levels(obj_SNP@pop))
 thresh <- summary(dapc_SSR)$assign.prop
 rad.power <- data.frame(nloc=numeric(0), mean=numeric(0), CIlow=numeric(0), CIhigh=numeric(0))
 gi.test.1 <- obj_SNP
-for (i in seq(5, length(locNames(obj_SNP)), 5)) {
+for (i in seq(10, length(locNames(obj_SNP)), 20)) {
   CIreps <- c()
-  for (j in 1:10) {
+  for (j in 1:100) {
     gi.test.2 <- gi.test.1[,loc=sample(1:length(unique(gi.test.1@loc.fac)), i)]
     dapc.test <- dapc(gi.test.2, gi.test.2@pop, n.pca=round(nrow(gi.test.2@tab)/1.5), n.da=5)
     CIreps <- c(CIreps, summary(dapc.test)$assign.prop)

@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{bash}
 sudo chmod +x /home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit
 
-/home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit ../data/LGM_SNP_Abies.arp ../data/loci_selection_1000_100.ars
+/home/rstudio/software/arlecore/arlecore_linux/arlecore3522_64bit ../data/LGM_SNP_Abies.arp ../data/loci_selection_50000_100.ars
 ```
 
 ```{bash}

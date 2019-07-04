@@ -70,12 +70,13 @@ a1 <- barplot.N.alleles(obj)
 a1$plot
 ```
 
-```{r}
-private <- poppr::private_alleles(obj, report = "data.frame")
+### Private alleles per cohort - level Country/Pop
+```{r, include=T}
+priv <- poppr::private_alleles(obj, report = "data.frame")
 
-if(is.data.frame(private)){
+if(is.data.frame(priv)){
   
-ggplot(private) + geom_tile(aes(x = population,
+ggplot(priv) + geom_tile(aes(x = population,
                                 y = allele,
                                 fill = count)) +
   ggtitle("Private alleles per population") +
@@ -83,17 +84,17 @@ ggplot(private) + geom_tile(aes(x = population,
   
 }
 ```
-
-```{r}
+### Private alleles per cohort - level Country
+```{r, include=T}
 setPop(obj) <- ~Country
 
-private <- poppr::private_alleles(obj, 
+priv <- poppr::private_alleles(obj, 
                                   report = "data.frame")
 
 
-if(is.data.frame(private)){
+if(is.data.frame(priv)){
 
-ggplot(private) + geom_tile(aes(x = population,
+ggplot(priv) + geom_tile(aes(x = population,
                                 y = allele,
                                 fill = count)) +
   ggtitle("Private alleles per cohort") +
@@ -104,9 +105,200 @@ ggplot(private) + geom_tile(aes(x = population,
 setPop(obj) <- ~Country/Pop
 ```
 
+```{r}
+setPop(obj) <- ~Country
+
+priv_count1 <- poppr::private_alleles(obj, 
+                                  report = "data.frame",
+                                  count.alleles = F)
+priv_count1$maf <- maf
+
+# ggplot(priv_count, aes(x=population, y=count)) +
+#   geom_bar(stat="identity")
+
+setPop(obj) <- ~Country/Pop
+```
 
 
 # Case 2 - No MAF filter
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 0.03
+
+obj <- import.snp.abies(threshold_loci = threshold_loci,
+                        threshold_ind = threshold_ind,
+                        maf = maf)
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+```{r include=T}
+### Data set details after data filtering:
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r, include=T}
+barplot.missing(obj)
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+a2 <- barplot.N.alleles(obj)
+a2$plot
+```
+
+### Private alleles per cohort - level Country/Pop
+```{r, include=T}
+priv <- poppr::private_alleles(obj, report = "data.frame")
+
+if(is.data.frame(priv)){
+  
+ggplot(priv) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per population") +
+  scale_fill_viridis_c()
+  
+}
+```
+
+### Private alleles per cohort - level Country
+```{r, include=T}
+setPop(obj) <- ~Country
+
+priv <- poppr::private_alleles(obj, 
+                                  report = "data.frame")
+
+
+if(is.data.frame(priv)){
+
+ggplot(priv) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per cohort") +
+  scale_fill_viridis_c()
+  
+}
+
+setPop(obj) <- ~Country/Pop
+```
+
+```{r}
+setPop(obj) <- ~Country
+
+priv_count2 <- poppr::private_alleles(obj, 
+                                  report = "data.frame",
+                                  count.alleles = F)
+priv_count2$maf <- maf
+
+# ggplot(priv_count, aes(x=population, y=count)) +
+#   geom_bar(stat="identity")
+
+setPop(obj) <- ~Country/Pop
+```
+
+# Case 3
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 0.01
+
+obj <- import.snp.abies(threshold_loci = threshold_loci,
+                        threshold_ind = threshold_ind,
+                        maf = maf)
+```
+
+### Data filtering thresholds
+```{r include=T}
+paste("SNP loci:", threshold_loci*100, 
+      "% missing data across populations", sep=" ")
+
+
+paste("Individuals:", threshold_ind*100, "% missing data", sep=" ")
+
+
+paste("SNP loci with minor allele frequency <", maf)
+```
+
+```{r include=T}
+### Data set details after data filtering:
+
+paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
+```
+
+```{r, include=T}
+barplot.missing(obj)
+```
+
+```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
+a3 <- barplot.N.alleles(obj)
+a3$plot
+```
+
+### Private alleles per cohort - level Country/Pop
+```{r, include=T}
+priv <- poppr::private_alleles(obj, report = "data.frame")
+
+if(is.data.frame(priv)){
+  
+ggplot(priv) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per population") +
+  scale_fill_viridis_c()
+  
+}
+```
+
+### Private alleles per cohort - level Country
+```{r, include=T}
+setPop(obj) <- ~Country
+
+priv <- poppr::private_alleles(obj, 
+                                  report = "data.frame")
+
+
+if(is.data.frame(priv)){
+
+ggplot(priv) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per cohort") +
+  scale_fill_viridis_c()
+  
+}
+
+setPop(obj) <- ~Country/Pop
+```
+
+```{r}
+setPop(obj) <- ~Country
+
+priv_count3 <- poppr::private_alleles(obj, 
+                                  report = "data.frame",
+                                  count.alleles = F)
+priv_count3$maf <- maf
+
+# ggplot(priv_count, aes(x=population, y=count)) +
+#   geom_bar(stat="identity")
+
+setPop(obj) <- ~Country/Pop
+```
+
+# Case 4
 
 ```{r}
 threshold_loci <- 0.1
@@ -141,16 +333,17 @@ barplot.missing(obj)
 ```
 
 ```{r cache=T, dpi=300, fig.width=5, fig.height=3, include=T}
-a2 <- barplot.N.alleles(obj)
-a2$plot
+a4 <- barplot.N.alleles(obj)
+a4$plot
 ```
 
-```{r}
-private <- poppr::private_alleles(obj, report = "data.frame")
+### Private alleles per cohort - level Country/Pop
+```{r, include=T}
+priv <- poppr::private_alleles(obj, report = "data.frame")
 
-if(is.data.frame(private)){
+if(is.data.frame(priv)){
   
-ggplot(private) + geom_tile(aes(x = population,
+ggplot(priv) + geom_tile(aes(x = population,
                                 y = allele,
                                 fill = count)) +
   ggtitle("Private alleles per population") +
@@ -159,16 +352,17 @@ ggplot(private) + geom_tile(aes(x = population,
 }
 ```
 
-```{r}
+### Private alleles per cohort - level Country
+```{r, include=T}
 setPop(obj) <- ~Country
 
-private <- poppr::private_alleles(obj, 
+priv <- poppr::private_alleles(obj, 
                                   report = "data.frame")
 
 
-if(is.data.frame(private)){
+if(is.data.frame(priv)){
 
-ggplot(private) + geom_tile(aes(x = population,
+ggplot(priv) + geom_tile(aes(x = population,
                                 y = allele,
                                 fill = count)) +
   ggtitle("Private alleles per cohort") +
@@ -180,18 +374,89 @@ setPop(obj) <- ~Country/Pop
 ```
 
 ```{r}
-p <- private %>% 
-  group_by(population) %>% 
-  summarise(count = n())
-
 setPop(obj) <- ~Country
 
-private2 <- poppr::private_alleles(obj, 
+priv_count4 <- poppr::private_alleles(obj, 
                                   report = "data.frame",
                                   count.alleles = F)
+priv_count4$maf <- maf
 
-ggplot(private2, aes(x=population, y=count)) +
-  geom_bar(stat="identity")
+# ggplot(priv_count, aes(x=population, y=count)) +
+#   geom_bar(stat="identity")
+
+setPop(obj) <- ~Country/Pop
+```
+
+
+
+# Overall
+
+```{r}
+priv_count1 <- as.data.frame(priv_count1)
+priv_count1 <- priv_count1 %>% 
+  add_column(population) %>% 
+  add_column(count) %>% 
+  add_column(allele)
+priv_count1 <- priv_count1 %>% 
+  add_row(population = "DE", count = 0, allele=0) %>% 
+  add_row(population = "GR", count = 0, allele=0) %>% 
+  add_row(population = "SI", count = 0, allele=0)
+
+priv_count2 <- as.data.frame(priv_count2)
+priv_count2 <- priv_count2 %>% 
+  add_column("population") %>% 
+  add_column("count") %>% 
+  add_column("allele")
+priv_count2 <- priv_count2 %>% 
+  add_row(population = "DE", count = 0, allele=0) %>% 
+  add_row(population = "GR", count = 0, allele=0) %>% 
+  add_row(population = "SI", count = 0, allele=0)
+```
+
+
+```{r, include=T}
+priv_count <- rbind(priv_count1,
+                    priv_count2,
+                    priv_count3,
+                    priv_count4)
+
+# ggplot(priv_count, aes(x=population, y=count)) +
+#   geom_bar(stat="identity") +
+#   facet_wrap(~maf)
+
+priv_count <- priv_count %>% 
+  filter(count > 0) %>% 
+  group_by(maf) %>% 
+  summarise(count = n())
+
+priv_count <- priv_count %>% 
+  add_row(maf = 0.03, count = 0) %>% 
+  add_row(maf = 0.05, count = 0)
+
+ggplot(priv_count, aes(x=as.factor(maf), y=count)) +
+  geom_bar(stat="identity",
+           color = "black", fill = "white",
+                 width = .5) +
+        ggtitle("Total Number of private alleles per Maf threshold")
+
+
+ggplot(priv_count, aes(x=as.factor(maf), y=count, group=1)) +
+  geom_point()+ 
+  geom_line(color="black")
+```
+
+```{r}
+a <- rbind(a1[["data"]], a2[["data"]], a3[["data"]], a4[["data"]])
+
+ggplot(a, aes(x=as.factor(maf), y=count)) +
+  geom_bar(stat="identity",
+           # color = "black", fill = "white",
+                 width = .5) +
+        ggtitle("Total Number of private alleles per Maf threshold")
+
+ggplot(a, aes(x=population, y=count)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~maf, ncol = 4)
 
 ```
 

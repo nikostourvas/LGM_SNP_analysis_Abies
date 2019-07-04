@@ -176,6 +176,12 @@ paste("SNP loci with minor allele frequency <", maf)
 paste(nInd(obj), "individuals", "and", nLoc(obj), "loci", sep=" ")
 ```
 
+## Change hierarchy
+```{r}
+setPop(obj) <- ~Country
+```
+
+
 ## Export to df for use in GenAlEx
 ```{r}
 # convert back to loci format
@@ -208,5 +214,5 @@ df[df=="C"] <- 4
 
 head(df)
 
-write.csv(df, file="../data/LGM_SNP_Abies.csv", row.names = F)
+write.csv(df, file="../data/LGM_SNP_Abies_Countries.csv", row.names = F)
 ```

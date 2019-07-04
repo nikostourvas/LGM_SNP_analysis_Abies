@@ -14,7 +14,7 @@ mis <- info %>%
         geom_hline(yintercept = 0.10, colour = "red") +
         theme(axis.text.x = element_text(colour = NA),
               axis.ticks = element_line(colour = NA)) +
-        ggtitle("Missing data frequency by cohort after filtering") +
+        ggtitle("Missing data by cohort after filtering") +
         facet_wrap(~pop, nrow=2 )
 
 mis
