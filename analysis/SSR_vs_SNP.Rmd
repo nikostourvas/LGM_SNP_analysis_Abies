@@ -434,7 +434,152 @@ knitr::kable(PA_SNP_country, "html", digits = 3,
 setPop(obj_SNP) <- ~Country/Pop
 ```
 
+# Mantel test comparing Nei distance matrices obtained from SSR and SNP
+```{r mantel, cache=T, dpi=300, include=T}
+
+# Restrict SSR data set to adults and regen
+obj_SSR_sub <- popsub(obj_SSR, blacklist = c("GR_Seed",
+                                             "DE_Seed",
+                                             "SL_Seed"))
+# # create list of population names
+# PopNames <- c("DE_A", "DE_NR",
+#               "SI_A", "SI_NR",
+#               "GR_A", "GR_NR")
+# 
+# # set pop names in genind object
+# popNames(obj_SSR_sub) <- PopNames
+
+
+# compute distance
+D_SNP <- genet.dist(obj_SNP, method = "Ds")
+
+D_SSR <- genet.dist(obj_SSR_sub, method = "Ds")
+
+mantel <- mantel.randtest(D_SNP, D_SSR) 
+mantel
+
+# plot(ibd)
+
+# library(MASS)
+# dens <- kde2d(Dgeo,Dgen, n=300)
+# myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+# plot(Dgeo, Dgen, pch=20,cex=.5,
+#      ylab="Cavalli-Sforza genetic distance",
+#      xlab="Geographical distance (euclidean)")
+# image(dens, col=transp(myPal(300),.7), add=TRUE)
+# abline(lm(Dgen~Dgeo))
+# title("Isolation by distance")
+
+plot(D_SSR, D_SNP, pch=20,cex=1,
+     ylab="Nei genetic distance SNP",
+     xlab="Nei genetic distance SSR")
+abline(lm(D_SNP~D_SSR))
+title("Mantel test of Distance Matrices")
+```
+
+```{r include=T}
+library(ecodist)
+
+ecodist::mantel(D_SNP ~ D_SSR)
+```
+
+```{r fig.height=4, fig.width=4}
+library(vegan)
+
+vegan::mantel(D_SNP, D_SSR, method = "pearson", permutations = 999)
+
+plot(D_SSR, D_SNP, pch=20,cex=1,
+     ylab="Nei genetic distance SNP",
+     xlab="Nei genetic distance SSR")
+abline(lm(D_SNP~D_SSR))
+title("Mantel test of Distance Matrices")
+```
+
+
 # Probability of assignment using DAPC [@jombart_DiscriminantAnalysisPrincipal_2010a]
+
+## calculate DAPC for different number of SSR loci
+```{r}
+setPop(obj_SSR_sub) <- ~Country
+
+loci <- sort(nAll(obj_SSR_sub)) # vector containing loci from least to
+# most polymorphic according to thlocie pooled dataset from all countries and pops
+loci <- names(loci) # transform named vector to vector of names
+
+data <- list()
+for(i in 1:length(loci)){
+  data[[length(loci)+1-i]] <- obj_SSR_sub[, loc = loci[i:length(loci)]]
+}
+```
+
+## SSR
+```{r}
+dapc_SSR <- list()
+for(i in 1:length(loci)){
+  dapc_SSR[[i]] <- dapc(data[[i]], obj_SSR_sub@pop, 
+                        n.pca=round(nrow(obj_SSR@tab)/1.5), n.da=5)
+}
+```
+
+## SNP
+```{r}
+setPop(obj_SNP) <- ~Country
+
+dapc_SNP <- dapc(obj_SNP, obj_SNP@pop, n.pca=round(nrow(obj_SNP@tab)/1.5), n.da=5)
+```
+
+## plot
+```{r include=T}
+# code adapted from http://www.mountainmanmaier.com/software/ms_vs_ddradseq/
+thresh <- list()
+  for(i in 1:length(loci)){
+    thresh[[i]] <- summary(dapc_SSR[[i]])$assign.prop
+  }
+
+thresh <- unlist(thresh)
+    
+rad.power <- data.frame(nloc=numeric(0), mean=numeric(0), CIlow=numeric(0), CIhigh=numeric(0))
+gi.test.1 <- obj_SNP
+for (i in seq(25, length(locNames(obj_SNP)), 20)) {
+  CIreps <- c()
+  for (j in 1:10) {
+    gi.test.2 <- gi.test.1[,loc=sample(1:length(unique(gi.test.1@loc.fac)), i)]
+    dapc.test <- dapc(gi.test.2, gi.test.2@pop, n.pca=round(nrow(gi.test.2@tab)/1.5), n.da=5)
+    CIreps <- c(CIreps, summary(dapc.test)$assign.prop)
+  }
+  assign.mean <- mean(CIreps)
+  error <- qt(0.975,df=9)*sd(CIreps)/sqrt(10)
+  CIlow <- assign.mean - error
+  CIhigh <- assign.mean + error
+  rad.power <- rbind(rad.power, c(i, assign.mean, CIlow, CIhigh))
+  names(rad.power) <- c("nloc", "mean", "CIlow", "CIhigh")
+}
+```
+
+```{r}
+ggplot(rad.power, aes(x=nloc, y=mean)) + 
+  geom_ribbon(aes(ymin=CIlow, ymax=CIhigh), alpha=0.2) +
+  geom_line(aes(y=mean), colour="blue") + 
+  geom_point(color="black") +
+  geom_hline(aes(yintercept = thresh[[3]], linetype="a", colour="a")) +
+  geom_hline(aes(yintercept = thresh[[5]], linetype="a", colour="a")) +
+  geom_hline(aes(yintercept = thresh[[11]], linetype="a", colour="a")) +
+  scale_x_continuous(breaks=c(0, 40, 80, 120, 160, 185)) +
+  scale_y_continuous(breaks=c(0.8, 0.85, 0.9, 0.95, 1.0)) +
+  ggtitle("Power of SNP Loci to Discriminate Cohorts") +
+  xlab("Number of SNP Loci") + ylab("Individuals Correctly Assigned (%)") +
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+```
+Red line: assignment ability of common SSR data set of 3, 5, 11 loci based on DAPC
+
+
+
+```{r}
+setPop(obj_SSR_sub) <- ~Country/Pop
+setPop(obj_SNP) <- ~Country/Pop
+```
+
+# 2 Probability of assignment using DAPC [@jombart_DiscriminantAnalysisPrincipal_2010a]
 ```{r}
 setPop(obj_SSR) <- ~Country
 setPop(obj_SNP) <- ~Country

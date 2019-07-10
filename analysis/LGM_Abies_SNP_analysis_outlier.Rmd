@@ -10,6 +10,7 @@ output:
     toc: yes
     toc_float: yes
     toc_depth: 3
+    self_contained: no
   html_document:
     code_folding: hide
     theme: united
@@ -19,7 +20,7 @@ always_allow_html: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+knitr::opts_chunk$set(include = FALSE, echo=FALSE, fig.path = "/figs/")
 ```
 
 ```{r}
@@ -115,7 +116,7 @@ x <- pcadapt(pca_genotype, K = K, min.maf = 0)
 summary(x) # numerical quantities obtained after performing a PCA
 ```
 
-```{r}
+```{r fig.path="/figs/"}
 p3 <- plot(x, option = "manhattan")
 ```
 

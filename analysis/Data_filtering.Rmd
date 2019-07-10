@@ -393,28 +393,35 @@ setPop(obj) <- ~Country/Pop
 
 ```{r}
 priv_count1 <- as.data.frame(priv_count1)
-priv_count1 <- priv_count1 %>% 
-  add_column(population) %>% 
-  add_column(count) %>% 
-  add_column(allele)
-priv_count1 <- priv_count1 %>% 
-  add_row(population = "DE", count = 0, allele=0) %>% 
-  add_row(population = "GR", count = 0, allele=0) %>% 
-  add_row(population = "SI", count = 0, allele=0)
+# priv_count1 <- priv_count1 %>% 
+#   add_column("population") %>%
+#   add_column("count") %>% 
+#   add_column("allele")
+# priv_count1 <- priv_count1 %>%
+#   add_row(population = "DE", count = 0, allele=0) %>%
+#   add_row(population = "GR", count = 0, allele=0) %>%
+#   add_row(population = "SI", count = 0, allele=0)
+priv_count1$population <- NA
+priv_count1$allele <- NA
+priv_count1$count <-0
 
 priv_count2 <- as.data.frame(priv_count2)
-priv_count2 <- priv_count2 %>% 
-  add_column("population") %>% 
-  add_column("count") %>% 
-  add_column("allele")
-priv_count2 <- priv_count2 %>% 
-  add_row(population = "DE", count = 0, allele=0) %>% 
-  add_row(population = "GR", count = 0, allele=0) %>% 
-  add_row(population = "SI", count = 0, allele=0)
+# priv_count2 <- priv_count2 %>% 
+#   add_column("population") %>% 
+#   add_column("count") %>% 
+#   add_column("allele")
+# priv_count2 <- priv_count2 %>% 
+#   add_row(population = "DE", count = 0, allele=0) %>% 
+#   add_row(population = "GR", count = 0, allele=0) %>% 
+#   add_row(population = "SI", count = 0, allele=0)
+
+priv_count2$population <- NA
+priv_count2$allele <- NA
+priv_count2$count <-0
 ```
 
 
-```{r, include=T}
+```{r, include=T, fig.width=5, fig.height=2.5}
 priv_count <- rbind(priv_count1,
                     priv_count2,
                     priv_count3,
@@ -435,9 +442,15 @@ priv_count <- priv_count %>%
 
 ggplot(priv_count, aes(x=as.factor(maf), y=count)) +
   geom_bar(stat="identity",
-           color = "black", fill = "white",
+           # color = "black", fill = "white",
                  width = .5) +
-        ggtitle("Total Number of private alleles per Maf threshold")
+        ggtitle("Total Number of Private Alleles per MAF Threshold") +
+  theme_classic() +
+  labs(x = "MAF") + 
+  theme(axis.text.x = element_text(size = 14), 
+    axis.text.y = element_text(size = 14)) +
+  scale_y_continuous(breaks = seq(0, 9, 3))
+  
 
 
 ggplot(priv_count, aes(x=as.factor(maf), y=count, group=1)) +
@@ -445,19 +458,27 @@ ggplot(priv_count, aes(x=as.factor(maf), y=count, group=1)) +
   geom_line(color="black")
 ```
 
-```{r}
+```{r fig.width=5, fig.height=2.5}
 a <- rbind(a1[["data"]], a2[["data"]], a3[["data"]], a4[["data"]])
 
-ggplot(a, aes(x=as.factor(maf), y=count)) +
-  geom_bar(stat="identity",
-           # color = "black", fill = "white",
-                 width = .5) +
-        ggtitle("Total Number of private alleles per Maf threshold")
+p1 <- ggplot(a, aes(x=as.factor(maf), y=count)) +
+      geom_bar(stat="identity",
+               # color = "black", fill = "white",
+                     width = .5) +
+            ggtitle("Total Number of Alleles per MAF Threshold") +
+      theme_classic()
 
-ggplot(a, aes(x=population, y=count)) +
+p1 +labs(x = "MAF") + 
+    theme(axis.text.x = element_text(size = 14), 
+    axis.text.y = element_text(size = 14))
+
+p <- ggplot(a, aes(x=population, y=count)) +
   geom_bar(stat="identity") +
   facet_wrap(~maf, ncol = 4)
 
+p + theme(plot.subtitle = element_text(vjust = 1), 
+    plot.caption = element_text(vjust = 1), 
+    axis.text.x = element_text(angle = 90))
 ```
 
 
