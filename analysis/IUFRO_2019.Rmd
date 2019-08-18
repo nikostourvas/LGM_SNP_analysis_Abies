@@ -1,0 +1,698 @@
+---
+title: "SNP, SSRs Abies IUFRO 2019"
+author: "Nikos Tourvas"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+bibliography: library.bib
+output:
+  html_notebook:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+    toc_depth: 3
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    ## toc_float: yes
+  pdf_document:
+    toc: yes
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = FALSE, echo=FALSE, fig.path = "/figs/")
+```
+
+## To Implement
+
+- Information capacity
+  - locus numbers
+  - polymorphism level
+  - gene action mode ???
+- Comparison with Krajmerova (only 2 common loci - no custom anal needed)
+- Comparison between cohorts (gen div higher in mature???)
+  - na, ne, LGP, I 
+```{r}
+library(popprxl)
+library(tidyverse)
+```
+
+## Load SNP data set
+```{r}
+source("import_snp_abies.R")
+```
+
+```{r}
+threshold_loci <- 0.99
+threshold_ind <- 0.99
+#obj_SNP <- import.snp.abies2(threshold_ind, threshold_loci, maf=0)
+maf <- 0
+obj_SNP <- import.snp.abies(threshold_ind, threshold_loci, maf)
+```
+
+<!-- ## subset greek pops -->
+```{r}
+obj_SNP <- popsub(obj_SNP, sublist = c("GR_A", "GR_NR"))
+```
+
+<!-- ## Filter specifically for greek pops -->
+```{r}
+obj_SNP <- missingno(obj_SNP, type="loci",
+                     cutoff = 0.1)
+obj_SNP <- missingno(obj_SNP, type = "geno",
+                     cutoff = 0.1)
+obj_SNP <- informloci(obj_SNP, MAF = 0)
+
+```
+
+
+### Data set details after data filtering:
+```{r include=T}
+paste(nInd(obj_SNP), "individuals", "and", nLoc(obj_SNP), "loci", sep=" ")
+```
+
+## Load SSR data set
+```{r}
+library(popprxl)
+
+obj_SSR <- read.genalexcel(
+  "../data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
+  sheet = "Abies_IUFRO2019",             # name of sheet where the genotypes reside
+  genclone = F) 
+
+
+splitStrata(obj_SSR) <- ~Country/Pop
+```
+
+<!-- ##subset SSR dataset -->
+```{r}
+obj_SSR <- popsub(obj_SSR,
+                  sublist = c("GR_A", "GR_NR"))
+```
+
+## SSRs Private alleles per cohort - level Country/Pop
+```{r private_SSR, cache=TRUE, dpi=300, fig.width=8.5, include=T}
+private <- poppr::private_alleles(obj_SSR, report = "data.frame")
+
+if(is.data.frame(private)){
+  
+ggplot(private) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per population using SSR markers") +
+  scale_fill_viridis_c()
+  
+}
+```
+
+```{r}
+PA_SSR <- as.data.frame(
+          rowSums(poppr::private_alleles(obj_SSR, count.alleles=F))
+)
+
+PA_SSR$marker <- c("11 SSR loci")
+
+PA_SSR <- PA_SSR %>% 
+  rename("Private alleles" = `rowSums(poppr::private_alleles(obj_SSR, count.alleles = F))`)
+
+PA_SSR$Cohort <- rownames(PA_SSR)
+```
+
+## SNPs Private alleles per cohort - level Country/Pop
+```{r private_SNP, cache=TRUE, dpi=300, fig.width=8.5, include=T}
+private <- poppr::private_alleles(obj_SNP, report = "data.frame")
+
+if(is.data.frame(private)){
+  
+ggplot(private) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private alleles per population using SSR markers") +
+  scale_fill_viridis_c()
+  
+}
+```
+
+```{r}
+PA_SNP <- as.data.frame(
+          rowSums(poppr::private_alleles(obj_SNP, count.alleles=F))
+)
+
+PA_SNP$marker <- c("140 SNP loci")
+
+PA_SNP <- PA_SNP %>% 
+  rename("Private alleles" = `rowSums(poppr::private_alleles(obj_SNP, count.alleles = F))`)
+
+PA_SNP$Cohort <- rownames(PA_SNP)
+```
+
+## PA
+```{r}
+#bind dfs
+PA_df <- rbind(PA_SSR, PA_SNP)
+
+pa <- PA_df %>% 
+      ggplot(aes(x=Cohort, y=`Private alleles`, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_wrap(~ marker) +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) +
+      scale_y_continuous(breaks = c(0, 3, 6, 9, 11))
+
+pa + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11))
+
+# SHOW WHAT IS THE SAMPLE SIZE!!!
+```
+
+## PCA SSR
+
+```{r}
+library(factoextra)
+library(ggord)
+```
+
+```{r pca_ssr, cache=T, fig.width=5, fig.height=3, include=T}
+## In case there are missing data, replace with mean
+X <- tab(obj_SSR, freq = TRUE, NA.method = "mean") 
+
+pca.obj_SSR <- dudi.pca(X, scale = FALSE, scannf = FALSE, nf = 3)
+
+fviz_eig(pca.obj_SSR, main = "Scree plot of PCA")
+```
+
+```{r pca_ssr_plot, cache=T, include=T}
+ggord(pca.obj_SSR, pop(obj_SSR), arrow = NULL, txt = NULL, 
+      grp_title="Populations", ellipse=F, poly=FALSE, size=2, 
+      alpha=.8, coord_fix=F, axes = c("1", "2")) +
+  geom_hline(yintercept=0,linetype=2) + 
+  geom_vline(xintercept=0,linetype=2) +
+  ggtitle("Principal Component Analysis") +
+  scale_shape_manual('Groups', values = 0:5) +
+  scale_color_manual('Groups', values = 
+                       c('#1b9e77','#d95f02','#7570b3',
+                         '#e7298a','#66a61e','#e6ab02') )
+
+# ggord(pca.obj_SSR, pop(obj_SSR), arrow = NULL, txt = NULL, 
+# grp_title="Populations", ellipse=T, poly=FALSE, size=2, 
+# alpha=.8, coord_fix=F, axes = c("1", "3")) +
+#   geom_hline(yintercept=0,linetype=2) + 
+#   geom_vline(xintercept=0,linetype=2) +
+#   ggtitle("Principal Component Analysis") +
+#   scale_shape_manual('Groups', values = 0:5) +
+#   scale_color_manual('Groups', values = 
+#                        c('#1b9e77','#d95f02','#7570b3',
+#                          '#e7298a','#66a61e','#e6ab02') )
+```
+
+## PCA SNP
+```{r pca_snp, cache=T, fig.width=5, fig.height=3, include=T}
+## In case there are missing data, replace with mean
+X <- tab(obj_SNP, freq = TRUE, NA.method = "mean") 
+
+pca.obj_SNP <- dudi.pca(X, scale = FALSE, scannf = FALSE, nf = 3)
+
+fviz_eig(pca.obj_SNP, main = "Scree plot of PCA")
+```
+
+```{r pca_snp_plot, cache=T, include=T}
+ggord(pca.obj_SNP, pop(obj_SNP), arrow = NULL, txt = NULL, 
+      grp_title="Populations", ellipse=F, poly=FALSE, size=2, 
+      alpha=.8, coord_fix=F, axes = c("1", "2")) +
+  geom_hline(yintercept=0,linetype=2) + 
+  geom_vline(xintercept=0,linetype=2) +
+  ggtitle("Principal Component Analysis") +
+  scale_shape_manual('Groups', values = 0:5) +
+  scale_color_manual('Groups', values = 
+                       c('#1b9e77','#d95f02','#7570b3',
+                         '#e7298a','#66a61e','#e6ab02') )
+
+# ggord(pca.obj_SNP, pop(obj_SNP), arrow = NULL, txt = NULL, 
+# grp_title="Populations", ellipse=T, poly=FALSE, size=2, 
+# alpha=.8, coord_fix=F, axes = c("1", "3")) +
+#   geom_hline(yintercept=0,linetype=2) + 
+#   geom_vline(xintercept=0,linetype=2) +
+#   ggtitle("Principal Component Analysis") +
+#   scale_shape_manual('Groups', values = 0:5) +
+#   scale_color_manual('Groups', values = 
+#                        c('#1b9e77','#d95f02','#7570b3',
+#                          '#e7298a','#66a61e','#e6ab02') )
+```
+
+## Summary statistics
+```{r summary_statistics, cache=T}
+
+## functions
+
+###### basic statistics and their SEs
+table_out <- function(obj, variable, name){
+  
+means <- colMeans(variable, na.rm=T)
+out <- c(means, mean(variable, na.rm = T))
+
+out <- as.data.frame(out)
+Pops <- c(popNames(obj), "Total")
+rownames(out) <- Pops
+colnames(out) <- name
+
+sem_out <- apply(variable, 2, function(x) sd(x) / sqrt(length(x))) 
+  ## 2 means work along columns
+sem_out_mean <- sd(variable) / sqrt(length(variable))
+
+sem_out <- as.data.frame(c(sem_out, sem_out_mean))
+rownames(sem_out) <- Pops
+colnames(sem_out) <- paste("SE", name, sep = "_")
+
+table_out <- cbind(out, sem_out)
+
+return(table_out)
+}
+
+
+
+
+###### basic statistics reported from poppr and their SEs
+poppr2hierfstat_out <- function(obj, variable){
+  
+obj_list <- seppop(obj)
+  
+stats_poppr <- list()
+for(i in 1: length(obj_list)){
+  stats_poppr[[i]] <- locus_table(obj_list[[i]], information = F)
+}
+
+table_out <- list()
+for(i in 1:length(obj_list))
+table_out[[i]] <- stats_poppr[[i]][-nrow(stats_poppr[[1]]), variable]
+
+table_out <- as.matrix(as.data.frame(table_out))
+colnames(table_out) <- popNames(obj)
+
+return(table_out)
+}
+
+```
+
+
+### SSR summary
+```{r}
+library(poppr)
+library(hierfstat)
+library(reshape2)
+
+## N
+N_by_locus <- basic.stats(obj_SSR)[["n.ind.samp"]]
+obj_list <- seppop(obj_SSR)
+N <- list()
+for(i in 1:length(obj_list)){
+        N[[i]] <- length(obj_list[[i]]@pop)
+}
+N <- melt(N)
+N_ssr <- c(N[,1], sum(N[,1]))
+
+## na
+na_by_locus <- poppr2hierfstat_out(obj_SSR, "allele")
+na_ssr <- table_out(obj_SSR, na_by_locus, "na")
+
+
+## uHe
+uHe_by_locus <- poppr2hierfstat_out(obj_SSR, "Hexp")
+uHe_ssr <- table_out(obj_SSR, uHe_by_locus, "uHe")
+
+## Ho
+Ho_by_locus <- basic.stats(obj_SSR)[["Ho"]]
+Ho_ssr <- table_out(obj_SSR, Ho_by_locus, "Ho")
+
+## ne
+ne_by_locus_Hs <- 1 / (1 - (basic.stats(obj_SSR)[["Hs"]]))
+ne_Hs_ssr <- table_out(obj_SSR, ne_by_locus_Hs, "ne")
+
+## ## ne
+## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_SSR)[["Hs"]]))
+## ne_Hs <- table_out(obj_SSR, ne_by_locus, "ne")
+
+## Fis
+Fis_by_locus <- basic.stats(obj_SSR)[["Fis"]]
+Fis_ssr <- table_out(obj_SSR, Fis_by_locus, "Fis") ## better use boot.ppfis
+
+## Private alleles
+PA <- rowSums(poppr::private_alleles(obj_SSR, count.alleles=F))
+PA <- data.frame(PA)
+PA_ssr <- rbind(PA, Total=colSums(PA))
+```
+
+```{r include=T}
+uHe_by_locus_tidy <- gather(as.data.frame(uHe_by_locus), 
+                            key = "population",
+                            value = "uHe")
+
+uHe_by_locus_tidy %>% 
+ggplot(aes(x = population, y = uHe) ) +
+  geom_violin() +
+  # geom_boxplot(width=.1) +
+  stat_summary(fun.y=mean, 
+                 geom="point") +
+  ggtitle("uHe distribution and mean value") +
+  theme_classic()
+
+```
+
+
+
+### SNP summary
+```{r}
+library(poppr)
+library(hierfstat)
+library(reshape2)
+
+## N
+N_by_locus <- basic.stats(obj_SNP)[["n.ind.samp"]]
+obj_list <- seppop(obj_SNP)
+N <- list()
+for(i in 1:length(obj_list)){
+        N[[i]] <- length(obj_list[[i]]@pop)
+}
+N <- melt(N)
+N_snp <- c(N[,1], sum(N[,1]))
+
+## na
+na_by_locus <- poppr2hierfstat_out(obj_SNP, "allele")
+na_snp <- table_out(obj_SNP, na_by_locus, "na")
+
+
+## uHe
+uHe_by_locus <- poppr2hierfstat_out(obj_SNP, "Hexp")
+uHe_snp <- table_out(obj_SNP, uHe_by_locus, "uHe")
+
+## Ho
+Ho_by_locus <- basic.stats(obj_SNP)[["Ho"]]
+Ho_snp <- table_out(obj_SNP, Ho_by_locus, "Ho")
+
+## ne
+ne_by_locus_Hs <- 1 / (1 - (basic.stats(obj_SNP)[["Hs"]]))
+ne_Hs_snp <- table_out(obj_SNP, ne_by_locus_Hs, "ne")
+
+## ## ne
+## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_SNP)[["Hs"]]))
+## ne_Hs <- table_out(obj_SNP, ne_by_locus, "ne")
+
+## Fis
+Fis_by_locus <- basic.stats(obj_SNP)[["Fis"]]
+Fis_snp <- table_out(obj_SNP, Fis_by_locus, "Fis") ## better use boot.ppfis
+
+## Private alleles
+
+PA_SNP_p <- poppr::private_alleles(obj_SNP, count.alleles=F)
+if(is.numeric(PA_SNP_p)){
+  PA_SNP <- rowSums(PA_SNP_p)
+  PA_SNP <- data.frame(PA)
+  PA <- rbind(PA, Total=colSums(PA_SNP))
+}else {
+  PA_SNP <- rep(0, length(popNames(obj_SNP)) + 1 )
+}
+
+```
+
+## uHe
+```{r uHe}
+uHe_ssr$Cohort <- rownames(uHe_ssr)
+uHe_snp$Cohort <- rownames(uHe_snp)
+
+uHe_ssr$marker <- "11 SSR loci"
+uHe_snp$marker <- "140 SNP loci"
+
+#bind dfs
+uHe_df <- rbind(uHe_ssr[-3,], uHe_snp[-3,])
+
+uHe_p <- uHe_df %>% 
+      ggplot(aes(x=Cohort, y=uHe, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_wrap(~ marker) +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+uHe_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11))+
+  ylab(expression(H[E]))
+
+# SHOW WHAT IS THE SAMPLE SIZE!!!
+```
+
+## Ho
+```{r Ho}
+Ho_ssr$Cohort <- rownames(Ho_ssr)
+Ho_snp$Cohort <- rownames(Ho_snp)
+
+Ho_ssr$marker <- "11 SSR loci"
+Ho_snp$marker <- "140 SNP loci"
+
+#bind dfs
+Ho_df <- rbind(Ho_ssr[-3,], Ho_snp[-3,])
+
+Ho_p <- Ho_df %>% 
+      ggplot(aes(x=Cohort, y=Ho, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_wrap(~ marker) +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+Ho_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+  ylab(expression(H[O]))
+
+# SHOW WHAT IS THE SAMPLE SIZE!!!
+```
+
+## Fis
+```{r Fis}
+Fis_ssr$Cohort <- rownames(Fis_ssr)
+Fis_snp$Cohort <- rownames(Fis_snp)
+
+Fis_ssr$marker <- "11 SSR loci"
+Fis_snp$marker <- "140 SNP loci"
+
+#bind dfs
+Fis_df <- rbind(Fis_ssr[-3,], Fis_snp[-3,])
+
+Fis_p <- Fis_df %>% 
+      ggplot(aes(x=Cohort, y=Fis, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_wrap(~ marker) +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+Fis_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+  ylab(expression(F[IS]))
+
+# SFisW WHAT IS THE SAMPLE SIZE!!!
+```
+
+## Fst - Gst
+```{r}
+library(hierfstat)
+fst_ssr <- genet.dist(obj_SSR, method = "Nei87")
+fst_snp <- genet.dist(obj_SNP, method = "Nei87")
+```
+
+## Gst Hedrick
+
+## Nei D
+
+## AMOVA
+
+## LD
+```{r eval=F}
+library(genetics)
+
+obj_SNP_loci <- genind2loci(obj_SNP)
+
+LD_SNP <- makeGenotypes(obj_SNP_loci[,-1]) %>% 
+          genetics::LD()
+```
+
+```{r eval=F}
+LD_df <- LD_SNP$`P-value`
+
+ind <- which(upper.tri(LD_df, diag = TRUE), 
+             arr.ind = TRUE)
+
+nn <- dimnames(LD_df)
+
+LD_df_long <- na.omit(
+  data.frame(locus1= nn[[1]] [ ind[,1]],
+             locus2= nn[[2]] [ ind[,2]],
+             pvalue= LD_df [ ind])
+)
+
+# significant LD after multiple test correction
+LD_df_long$p.adjust <- p.adjust(LD_df_long$pvalue,
+                                method="holm")
+
+LD_sig <- filter(LD_df_long, p.adjust < 0.05)
+```
+
+## export to fstat --> NeEstimator
+```{r}
+# Both data sets have issues with physical LD
+# First subset them, then use NeEstimator
+
+## subset SSR data set
+all_loci <- locNames(obj_SSR) #vector of all loci
+removeloc <- "SF1" #loci to remove
+keeploc <- setdiff(all_loci, removeloc) #loci to keep
+obj_SSR_ne <- obj_SSR[loc = keeploc]
+
+obj_SSR_hier <- genind2hierfstat(obj_SSR_ne)
+
+write.fstat(dat = obj_SSR_hier, 
+            fname = "../data/LGM_GR_Abies_SSR.dat")
+
+## subset SNP data set based on previous analysis
+to.remove <- c("contig02161-64", "contig18676-31", "contig21141-311", "newcontig05502-128", "newcontig07067-521", "newcontig08206-176", "newcontig30715-525")
+loci_int <- names(nAll(obj_SNP))
+obj_SNP_no_LD <- obj_SNP[,loc = setdiff(loci_int, to.remove)]
+
+obj_SNP_hier <- genind2hierfstat(obj_SNP_no_LD)
+
+write.fstat(dat = obj_SNP_hier, 
+            fname = "../data/LGM_GR_Abies_SNP.dat")
+```
+
+```{r}
+# alternative export to neestimator for SSR data set
+all_loci <- locNames(obj_SSR) #vector of all loci
+removeloc <- "Aat01" #loci to remove
+keeploc <- setdiff(all_loci, removeloc) #loci to keep
+obj_SSR_ne2 <- obj_SSR[loc = keeploc]
+
+obj_SSR_hier2 <- genind2hierfstat(obj_SSR_ne2)
+
+write.fstat(dat = obj_SSR_hier2, 
+            fname = "../data/LGM_GR_Abies_SSR_2.dat")
+```
+
+## Ne
+
+## Comparisons with Krajmerova
+```{r}
+df_kraj <- data.frame(
+        ar = 4.29,
+        par = 0.03,
+        ne = 2.69,
+        he = 0.562
+)
+
+df_gr <- data.frame(
+        ar = c(5.9, 5.6),
+        par = c(0.21, 0.18),
+        ne = c(4.39, 4.42),
+        he = c(0.589, 0.593)
+)
+
+df_comp <- rbind(df_kraj, df_gr)
+df_comp$study <- c("Krajmerová et al. \n 2015 (7 SSRs)", "Current study \n (11 SSRs)", "Current study \n (11 SSRs)")
+df_comp$Cohort <- c("GR_A", "GR_A", "GR_NR")
+```
+
+```{r}
+ar_comp_p <- df_comp %>% 
+      ggplot(aes(x=Cohort, y=ar, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_grid(~ study, scales="free_x",
+                       space = "free_x") +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+ar_comp_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+        ylab("AR") +
+    ggtitle("Allelic Richness (g=44) \nMt Olympus region")
+```
+
+```{r}
+par_comp_p <- df_comp %>% 
+      ggplot(aes(x=Cohort, y=par, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_grid(~ study, scales="free_x",
+                       space = "free_x") +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+par_comp_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+        ylab("pAR") +
+    ggtitle("Private Allelic Richness (g=44) \nMt Olympus region")
+```
+
+```{r}
+ne_comp_p <- df_comp %>% 
+      ggplot(aes(x=Cohort, y=ne, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_grid(~ study, scales="free_x",
+                       space = "free_x") +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+ne_comp_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+        ylab(expression(n[e])) +
+    ggtitle("Effective Number of Alleles \nMt Olympus region")
+```
+
+```{r}
+he_comp_p <- df_comp %>% 
+      ggplot(aes(x=Cohort, y=he, fill=Cohort)) +
+            geom_bar(stat="identity", width = 0.5,
+                     color="black") +
+            facet_grid(~ study, scales="free_x",
+                       space = "free_x") +
+      theme_classic() +
+      theme(legend.position = "none") +
+      scale_fill_manual(values = c("white", "lightgrey")) 
+
+he_comp_p + theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+        ylab(expression(H[E])) +
+    ggtitle("Expected Heterozygosity \nMt Olympus region")
+```
+
