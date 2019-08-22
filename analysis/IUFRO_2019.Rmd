@@ -438,6 +438,17 @@ Ho_p + theme(axis.title = element_text(size = 14),
 ```
 
 ## Fis
+```{r fis_cis}
+fis.cis <- function(obj, nboot){
+        res <- boot.ppfis(obj, nboot = nboot)
+        res <- data.frame(sapply(res[[2]], c))
+        return(res)
+}
+
+fis_cis_SSR <- fis.cis(obj_SSR, 10000)
+fis_cis_SNP <- fis.cis(obj_SNP, 10000)
+```
+
 ```{r Fis, fig.height=3, fig.width=4.2, include=T}
 Fis_ssr$Cohort <- rownames(Fis_ssr)
 Fis_snp$Cohort <- rownames(Fis_snp)
@@ -465,6 +476,22 @@ Fis_p + theme(axis.title = element_text(size = 14),
   ylab(expression(F[IS]))
 
 # SFisW WHAT IS THE SAMPLE SIZE!!!
+```
+F~IS~ confidence intervals from 10000 bootstraps
+
+<!-- test cis -->
+```{r}
+test <- boot.ppfis(obj_SSR, nboot = 1000)
+```
+
+
+```{r eval=F}
+for (i in 1:10){
+        sim.obj <- obj_SSR[,loc=sample(1:length(unique(obj_SSR@loc.fac)))]
+fis.res <- basic.stats(sim.obj)[["Fis"]]
+fis.sim <- table_out(obj_SSR, Fis_by_locus, "Fis") 
+# fis.mean <- mean
+}
 ```
 
 ## Fst (Nei 1987)
@@ -597,18 +624,22 @@ amova_SSR <- poppr.amova(obj_SSR, ~Pop, within = F)
 amova_SNP <- poppr.amova(obj_SNP, ~Pop, within = F)
 ```
 
-```{r}
-amova_SSR_df <- as.data.frame(
-        amova_SSR$componentsofcovariance)
-amova_SSR_df <- amova_SSR_df[-3,]
-amova_SSR_df$component <- c("Between",
-                            "Within")
+```{r include=T}
+amova_SSR_df <- cbind(amova_SSR$results,
+              amova_SSR$componentsofcovariance)
 
-# JUST USE KABLE
+kableExtra::kable(amova_SSR_df, format="html",
+   digits=3, 
+   caption = "AMOVA SSR data set") %>% 
+kable_styling(bootstrap_options = "striped", full_width = F)
 
-amova_SSR_df %>% 
-        ggplot(aes(x=component, y=`%`)) +
-        geom_bar(stat="identity")
+amova_SNP_df <- cbind(amova_SNP$results,
+              amova_SNP$componentsofcovariance)
+
+kableExtra::kable(amova_SNP_df, format="html",
+   digits=3, 
+   caption = "AMOVA SNP data set") %>% 
+kable_styling(bootstrap_options = "striped", full_width = F)
 ```
 
 <!-- ## LD -->
