@@ -1,0 +1,132 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(popprxl)
+# library(tidyverse)
+```
+
+<!-- ## Load SSR data set -->
+```{r}
+library(popprxl)
+
+obj_SSR <- read.genalexcel(
+  "../data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
+  sheet = "Abies_IUFRO2019",             # name of sheet where the genotypes reside
+  genclone = F) 
+
+
+splitStrata(obj_SSR) <- ~Country/Pop
+```
+
+<!-- ##subset SSR dataset -->
+```{r}
+obj_SSR <- popsub(obj_SSR,
+                  sublist = c("GR_A", "GR_NR"))
+```
+
+# Plan
+Seperate loci ( 1.seploc or 2.from loci object)
+make a for loop
+        sample 11 loci (with replacement)
+        calculate ar, ne, ...
+        
+        
+
+## Sep object by locus
+```{r}
+sep_loci <- seploc(obj_SSR)
+
+library(pegas)
+sep_loci_pegas <- lapply(sep_loci, as.loci)
+sep_loci_pegas <- lapply(sep_loci_pegas, function(x){x[, 2]})
+```
+
+## Create loci obj
+```{r}
+obj_SSR_loci <- as.loci(obj_SSR)
+
+obj_SSR_loci_base <- as.data.frame(obj_SSR_loci[, 1])
+colnames(obj_SSR_loci_base) <- "population"
+```
+
+## Loops
+```{r}
+samples <- list()
+dfs <- list()
+iterations <- 10000
+for(i in 1:iterations){
+  samples[[i]] <- sample(sep_loci_pegas, size=11, replace = TRUE)
+}
+```
+
+```{r}
+# list to data.frame
+dfs <- lapply(samples, function(x){do.call(cbind.data.frame, x)})
+
+for(i in 1:iterations){
+  dfs[[i]] <- cbind(obj_SSR_loci_base, dfs[[i]])
+  dfs[[i]] <- as.loci(dfs[[i]])
+}
+```
+
+## Create genind object
+```{r}
+suppressMessages(
+# test <- loci2genind(as.loci(dfs[[1]]) )
+genind_objects <- lapply(dfs, loci2genind)
+)
+```
+
+## uHe
+```{r}
+source("scripts/summary_stats.R")
+
+
+uHe_by_locus <- lapply(genind_objects, poppr2hierfstat_out, "Hexp")
+
+uHe_ssr <- lapply(uHe_by_locus, colMeans, na.rm=T)
+uHe_boot <- do.call(rbind.data.frame, uHe_ssr)
+
+uhe_sd_A <- sd(uHe_boot[,1])
+uhe_sd_NR <- sd(uHe_boot[,2])
+```
+
+```{r}
+
+```
+
+## ne
+```{r}
+library(hierfstat)
+ne_by_locus_Hs <- lapply(genind_objects, function(x) {
+            1 / (1 - (basic.stats(x)[["Hs"]])) 
+  }
+)
+
+ne_Hs_ssr <- lapply(ne_by_locus_Hs, colMeans, na.rm=T)
+ne_boot <- do.call(rbind.data.frame, ne_Hs_ssr)
+
+ne_sd_A <- sd(ne_boot[,1])
+ne_sd_NR <- sd(ne_boot[,2])
+```
+
+## AR
+```{r}
+ar_by_locus <- lapply(genind_objects, allelic.richness, min.n=44)
+ar_by_locus <- lapply(ar_by_locus, function(x){x[["Ar"]]})
+
+ar_ssr <- lapply(ar_by_locus, colMeans, na.rm=T)
+ar_boot <- do.call(rbind.data.frame, ar_ssr)
+
+ar_sd_A <- sd(ar_boot[,1])
+ar_sd_NR <- sd(ar_boot[,2])
+
+```
+
