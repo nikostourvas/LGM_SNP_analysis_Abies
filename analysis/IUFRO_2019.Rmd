@@ -1,5 +1,5 @@
 ---
-title: "SNP, SSRs Abies IUFRO 2019"
+title: "Interim Genetic Monitoring Application... - IUFRO 2019"
 author: "Nikos Tourvas"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 bibliography: library.bib
@@ -76,14 +76,16 @@ obj_SNP <- informloci(obj_SNP, MAF = 0)
 
 ```
 
-### SNP Data set filtering 
+### SNP Data set filtering
 SNP loci: 10% missing data  
 Individuals: 10% missing data  
 MAF = 0
 
+In total, 212 loci were successfully amplified.
+140 loci were used after removing monomorphic loci.
 
-### SNP Data set details after data filtering:
-```{r include=T}
+<!-- ### SNP Data set details after data filtering: -->
+```{r include=F}
 paste(nInd(obj_SNP), "individuals", "and", nLoc(obj_SNP), "loci", sep=" ")
 ```
 
@@ -108,6 +110,10 @@ obj_SSR <- popsub(obj_SSR,
 
 
 # SSR - SNP comparison
+```{r}
+library(kableExtra)
+```
+
 ```{r include=T}
 ss <- data.frame(
   SSR = c(250, 200),
@@ -116,7 +122,6 @@ ss <- data.frame(
 
 rownames(ss) <- c("GR_A", "GR_NR")
 
-library(kableExtra)
 kableExtra::kable(ss,caption = "Sample size") %>% 
         kable_styling(bootstrap_options = "striped", full_width = F)
 ```
@@ -179,8 +184,8 @@ PA_SNP <- PA_SNP %>%
 PA_SNP$Cohort <- rownames(PA_SNP)
 ```
 
-## PA
-```{r fig.height=3, fig.width=4.2, include=T}
+<!-- ## PA -->
+```{r private, fig.height=3, fig.width=4.2, include=T}
 #bind dfs
 PA_df <- rbind(PA_SSR, PA_SNP)
 
@@ -191,7 +196,7 @@ pa <- PA_df %>%
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) +
+      scale_fill_manual(values = c("grey40", "grey90")) +
       scale_y_continuous(breaks = c(0, 3, 6, 9, 11))
 
 pa + theme(axis.title = element_text(size = 14), 
@@ -377,8 +382,8 @@ if(is.numeric(PA_SNP_p)){
 
 ```
 
-## He
-```{r uHe, fig.height=3, fig.width=4.2, include=T}
+<!-- ## He -->
+```{r He, fig.height=3, fig.width=4.2, include=T}
 uHe_ssr$Cohort <- rownames(uHe_ssr)
 uHe_snp$Cohort <- rownames(uHe_snp)
 
@@ -395,7 +400,7 @@ uHe_p <- uHe_df %>%
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 uHe_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -407,7 +412,7 @@ uHe_p + theme(axis.title = element_text(size = 14),
 # SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
 
-## Ho
+<!-- ## Ho -->
 ```{r Ho, fig.height=3, fig.width=4.2, include=T}
 Ho_ssr$Cohort <- rownames(Ho_ssr)
 Ho_snp$Cohort <- rownames(Ho_snp)
@@ -425,7 +430,7 @@ Ho_p <- Ho_df %>%
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 Ho_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -437,16 +442,13 @@ Ho_p + theme(axis.title = element_text(size = 14),
 # SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
 
-## Fis
+<!-- ## Fis -->
 ```{r fis_cis}
-fis.cis <- function(obj, nboot){
-        res <- boot.ppfis(obj, nboot = nboot)
-        res <- data.frame(sapply(res[[2]], c))
-        return(res)
-}
+source("fis.cis.R")
 
 fis_cis_SSR <- fis.cis(obj_SSR, 10000)
 fis_cis_SNP <- fis.cis(obj_SNP, 10000)
+fis_cis <- rbind(fis_cis_SSR, fis_cis_SNP)
 ```
 
 ```{r Fis, fig.height=3, fig.width=4.2, include=T}
@@ -458,15 +460,20 @@ Fis_snp$marker <- "140 SNP loci"
 
 #bind dfs
 Fis_df <- rbind(Fis_ssr[-3,], Fis_snp[-3,])
+Fis_df <- cbind(Fis_df, fis_cis)
 
 Fis_p <- Fis_df %>% 
       ggplot(aes(x=Cohort, y=Fis, fill=Cohort)) +
-            geom_bar(stat="identity", width = 0.5,
-                     color="black") +
+            geom_point(stat="identity",
+                     color="black",
+                     size=2.5) +
+            geom_errorbar(aes(ymin=ll,
+                              ymax=hl),
+                              width=0.4) +
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 Fis_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -475,15 +482,9 @@ Fis_p + theme(axis.title = element_text(size = 14),
     strip.text.x = element_text(size = 11)) +
   ylab(expression(F[IS]))
 
-# SFisW WHAT IS THE SAMPLE SIZE!!!
+# SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
-F~IS~ confidence intervals from 10000 bootstraps
-
-<!-- test cis -->
-```{r}
-test <- boot.ppfis(obj_SSR, nboot = 1000)
-```
-
+F~IS~ 95% confidence intervals from 10000 bootstraps over loci
 
 ```{r eval=F}
 for (i in 1:10){
@@ -494,27 +495,38 @@ fis.sim <- table_out(obj_SSR, Fis_by_locus, "Fis")
 }
 ```
 
-## Fst (Nei 1987)
+<!-- ## Fst (Nei 1987) -->
 ```{r}
 library(hierfstat)
 fst_ssr <- genet.dist(obj_SSR, method = "Nei87")
 fst_snp <- genet.dist(obj_SNP, method = "Nei87")
 ```
 
-```{r Fst_p, fig.height=3, fig.width=4.2, include=T}
+```{r fst.ci}
+source("fst.cis.R")
+
+fst_cis_SSR <- fst.cis(obj_SSR, 10000)
+fst_cis_SSR$marker <- "11 SSR loci"
+fst_cis_SNP <- fst.cis(obj_SNP, 10000)
+fst_cis_SNP$marker <- "140 SNP loci"
+fst_cis <- rbind(fst_cis_SSR, fst_cis_SNP)
+```
+
+```{r Fst, fig.height=3, fig.width=4.2, include=T}
 fst_comp <- as.data.frame(
       rbind(fst_ssr, fst_snp)
 )
 colnames(fst_comp) <- "fst"
-fst_comp$marker <- c("11 SSR loci",
-                     "140 SNP loci")
+fst_comp <- cbind(fst_comp, fst_cis)
 
 fst_comp_p <- fst_comp %>% 
         ggplot(aes(x=marker, y=fst)) +
-        geom_bar(stat="identity",
-                 width=0.5,
+        geom_point(stat="identity",
+                 size=2.5,
                  color="black",
-                 fill="white") +
+                 fill="grey40") +
+        geom_errorbar(aes(ymin=ll, ymax=ul),
+                      width=.2) +
         theme_classic()
 
 fst_comp_p + 
@@ -526,8 +538,9 @@ fst_comp_p +
   ylab(expression(F[ST])) +
   xlab("Marker system")
 ```
+F~ST~ 95% confidence intervals from 10000 bootstraps over loci
 
-Και τα δύο συστήματα δεικτών παρουσιάζουν πολύ χαμηλές τιμές διαφοροποίησης των δύο πληθυσμών. Αν και οι SSR παρουσιάζουν αρκετά υψηλότερη τιμή, αυτό πιθανότατα οφείλεται στις διαφορές των δύο δεικτών (multiallelic, biallelic) και στην επιδραση που αυτές έχουν στο εύρος του των τιμών που μπορεί να λάβει το Fst.
+Και τα δύο συστήματα δεικτών παρουσιάζουν πολύ χαμηλές τιμές διαφοροποίησης. Αν και οι SSR παρουσιάζουν υψηλότερη τιμή, αυτό πιθανότατα οφείλεται στις διαφορές των δύο δεικτών (multiallelic / biallelic, mutation rates).
 
 ```{r}
 bas_res <- basic.stats(obj_SNP)
@@ -536,8 +549,11 @@ SNP_pl <- as.data.frame(bas_res["perloc"])
 SNP_pl$locus <- rownames(SNP_pl)
 
 SNP_pl %>% 
-        ggplot(aes(x="", y=perloc.Fstp)) +
-        geom_violin()
+        ggplot(aes(x=perloc.Fstp)) +
+        geom_histogram(binwidth = 0.001) +
+        theme_classic() +
+        ylab(expression(F[ST])) +
+        xlab("")
 ```
 
 <!-- ## Gst Hedrick -->
@@ -624,7 +640,7 @@ amova_SSR <- poppr.amova(obj_SSR, ~Pop, within = F)
 amova_SNP <- poppr.amova(obj_SNP, ~Pop, within = F)
 ```
 
-```{r include=T}
+```{r amovatables, include=T}
 amova_SSR_df <- cbind(amova_SSR$results,
               amova_SSR$componentsofcovariance)
 
@@ -640,6 +656,41 @@ kableExtra::kable(amova_SNP_df, format="html",
    digits=3, 
    caption = "AMOVA SNP data set") %>% 
 kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+```{r amova, fig.height=3, fig.width=4.2, include=T}
+amova_df <- as.data.frame(rbind(amova_SSR_df[-3,5], amova_SNP_df[-3,5]))
+colnames(amova_df) <- c("Between", "Within")
+amova_df$marker <- c("11 SSR loci", "140 SNP loci")
+
+amova_df <- amova_df %>% 
+  gather(percentage, value, -marker)
+
+amova_df <- cbind(amova_df[,-3],
+                  value = round(amova_df[,3], 2))
+
+amova_p <- amova_df %>% 
+  ggplot(aes(x=marker, y=value, fill=percentage)) +
+  geom_bar(stat="identity", 
+           position = position_dodge(width = 1),
+           color="black") +
+  geom_text(aes(label=value, vjust = -0.3, hjust=0.5), 
+            position = position_dodge(width=1))
+
+amova_p + 
+  theme_classic() +
+  theme(legend.title = element_text(colour = NA)) + 
+  scale_y_continuous(expand=c(0.1, 0)) +
+  scale_fill_manual(values=c("grey90", "grey40")) +
+  theme(axis.title = element_text(size = 14), 
+  axis.text = element_text(size = 11), 
+  axis.text.x = element_text(size = 11), 
+  axis.text.y = element_text(size = 13),
+  strip.text.x = element_text(size = 11)) +
+      ylab("Percent (%)") +
+      xlab("Marker system") +
+  ggtitle("AMOVA")
+
 ```
 
 <!-- ## LD -->
@@ -716,6 +767,8 @@ write.fstat(dat = obj_SSR_hier2,
 <!-- ## Ne -->
 
 # Comparisons with Krajmerova et al. 2015
+Results from a Mt. Olympus population (n=47) sampled by Krajmerova et al. 2015, are compared with the current work.
+
 ```{r include=T}
 ss <- data.frame(
   `Current study` = c(250, 200),
@@ -749,7 +802,7 @@ df_comp$study <- c("Krajmerová et al. \n 2015 (7 SSRs)", "Current study \n (11 
 df_comp$Cohort <- c("GR_A", "GR_A", "GR_NR")
 ```
 
-```{r, fig.height=3, fig.width=4.2, include=T}
+```{r alrichness, fig.height=3, fig.width=4.2, include=T}
 ar_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=ar, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
@@ -758,7 +811,7 @@ ar_comp_p <- df_comp %>%
                        space = "free_x") +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 ar_comp_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -770,7 +823,7 @@ ar_comp_p + theme(axis.title = element_text(size = 14),
 ```
 Rarefaction to g=44 gene copies (i.e. 22 individuals).
 
-```{r, fig.height=3, fig.width=4.5, include=T}
+```{r palrichness, fig.height=3, fig.width=4.5, include=T}
 par_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=par, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
@@ -779,7 +832,7 @@ par_comp_p <- df_comp %>%
                        space = "free_x") +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 par_comp_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -791,7 +844,7 @@ par_comp_p + theme(axis.title = element_text(size = 14),
 ```
 Rarefaction to g=44 gene copies (i.e. 22 individuals).
 
-```{r, fig.height=3, fig.width=4.2, include=T}
+```{r effectiveall, fig.height=3, fig.width=4.2, include=T}
 ne_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=ne, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
@@ -800,7 +853,7 @@ ne_comp_p <- df_comp %>%
                        space = "free_x") +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 ne_comp_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -811,7 +864,7 @@ ne_comp_p + theme(axis.title = element_text(size = 14),
     ggtitle("Effective Number of Alleles \nMt. Olympus region")
 ```
 
-```{r, fig.height=3, fig.width=4.5, include=T}
+```{r he_comp, fig.height=3, fig.width=4.5, include=T}
 he_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=he, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
@@ -820,7 +873,7 @@ he_comp_p <- df_comp %>%
                        space = "free_x") +
       theme_classic() +
       theme(legend.position = "none") +
-      scale_fill_manual(values = c("white", "lightgrey")) 
+      scale_fill_manual(values = c("grey40", "grey90")) 
 
 he_comp_p + theme(axis.title = element_text(size = 14), 
     axis.text = element_text(size = 11), 
@@ -828,6 +881,168 @@ he_comp_p + theme(axis.title = element_text(size = 14),
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
         ylab(expression(H[E])) +
-    ggtitle("Expected Heterozygosity \nMt. Olympus region")
+    ggtitle("Expected Heterozygosity (Nei 1978) \nMt. Olympus region")
+```
+
+# Information Capacity
+```{r}
+source("information_content.R")
+
+ic_SSR <- ic(obj_SSR, P=1)
+ic_SNP <- ic(obj_SNP, P=1)
+
+ic <- as.data.frame((rbind(ic_SSR, ic_SNP)))
+ic$marker <- c("11 SSR loci",
+               "140 SNP loci")
+ic <- rename(ic, ic=V1)
+```
+
+```{r IC, fig.height=3, fig.width=4.5, include=T}
+ic_p <- ic %>% 
+  ggplot(aes(x=marker, y=ic)) +
+  geom_bar(stat="identity", width = 0.5,
+                     color="black", fill="grey40")
+
+ic_p + 
+    theme_classic() +
+    scale_y_continuous(limits=c(0,600)) +
+    theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+    xlab("Marker system") +
+    ylab(expression(I[C])) +
+    ggtitle("Information Capacity")
+```
+
+Όσον αφορά το SNP data set, παρατηρούμε μεγάλο αριθμό μονομορφικών θέσεων στους ελληνικούς πληθυσμούς (ενδεχομένως επειδή το reference genome για το SNP array που χρησιμοποιήσαμε ήταν *A. alba* ;). Εν μέρει αυτό ευθύνεται για την χαμηλότερη τιμή στο information capacity. Ωστόσο ακόμα για χαμηλά ποσοστά μονομορφικών θέσεων, 200-250 SNP δεν παρουσιάζουν σημαντικά υψηλότερο information capacity από τα 11 SSR που χρησιμοποιούμε.
+
+## PIC (Botstein et al. 1980)
+```{r}
+gen2polysat <- function(gen, newploidy = gen@ploidy){
+  if (!require(polysat)){
+    stop("User needs polysat installed")
+  }
+  gen   <- recode_polyploids(gen, newploidy)
+  gendf <- genind2df(gen, sep = "/", usepop = FALSE)
+  gendf <- lapply(gendf, strsplit, "/")
+  gendf <- lapply(gendf, lapply, as.numeric)
+  ambig <- new("genambig", samples = indNames(gen), loci = locNames(gen))
+  for (i in names(gendf)){
+    res <- lapply(gendf[[i]], function(x) ifelse(is.na(x), Missing(ambig), x))
+    Genotypes(ambig, loci = i) <- res
+  }
+  return(ambig)
+}
+```
+
+```{r}
+snp2polysat <- function(gen, newploidy = gen@ploidy){
+  if (!require(polysat)){
+    stop("User needs polysat installed")
+  }
+  gen   <- recode_polyploids(gen, newploidy)
+  
+# polysat is sensitive to loci names, so I make fake ones!  
+vec <- make.unique(rep(letters, 
+                       length.out = nLoc(gen)), sep='')
+locNames(gen) <- vec
+
+
+  
+  gendf <- genind2df(gen, sep = "/", usepop = FALSE)
+
+gendf[gendf=="A/A"] <- "1/1"
+gendf[gendf=="A/T"] <- "1/2"
+gendf[gendf=="A/G"] <- "1/3"
+gendf[gendf=="A/C"] <- "1/4"
+
+gendf[gendf=="T/A"] <- "2/1"
+gendf[gendf=="T/T"] <- "2/2"
+gendf[gendf=="T/G"] <- "2/3"
+gendf[gendf=="T/C"] <- "2/4"
+
+gendf[gendf=="G/A"] <- "3/1"
+gendf[gendf=="G/T"] <- "3/2"
+gendf[gendf=="G/G"] <- "3/3"
+gendf[gendf=="G/C"] <- "3/4"
+
+gendf[gendf=="C/A"] <- "4/1"
+gendf[gendf=="C/T"] <- "4/2"
+gendf[gendf=="C/G"] <- "4/3"
+gendf[gendf=="C/C"] <- "4/4"
+  
+  gendf <- lapply(gendf, strsplit, "/")
+  gendf <- lapply(gendf, lapply, as.numeric)
+  ambig <- new("genambig", samples = indNames(gen), loci = locNames(gen))
+  for (i in names(gendf)){
+    res <- lapply(gendf[[i]], function(x) ifelse(is.na(x), Missing(ambig), x))
+    Genotypes(ambig, loci=i) <- res
+  }
+  return(ambig)
+}
+```
+
+```{r}
+# Create genambig object
+obj_SSR_pol <- gen2polysat(obj_SSR)
+PopInfo(obj_SSR_pol) <- c(rep(1, 250),
+                          rep(2, 200))
+Ploidies(obj_SSR_pol) <- rep(2, 450)
+# obj_SSR_pol
+
+library(polysat)
+
+freq_SSR <- simpleFreq(obj_SSR_pol)
+pic_SSR <- PIC(freq_SSR)
+
+pic_SSR <- as.data.frame(pic_SSR)
+pic_SSR_mean <- pic_SSR %>% 
+  rowMeans()
+pic_SSR_mean <- pic_SSR_mean[3]
+# pic_SSR_mean
+```
+
+```{r}
+obj_SNP_pol <- snp2polysat(obj_SNP)
+PopInfo(obj_SNP_pol) <- c(rep(1, 123),
+                          rep(2, 64))
+Ploidies(obj_SNP_pol) <- rep(2, 187)
+
+freq_SNP <- simpleFreq(obj_SNP_pol)
+pic_SNP <- PIC(freq_SNP)
+
+pic_SNP <- as.data.frame(pic_SNP)
+pic_SNP_mean <- pic_SNP %>% 
+  rowMeans()
+pic_SNP_mean <- pic_SNP_mean[3]
+# pic_SNP_mean
+```
+
+```{r PIC, fig.height=3, fig.width=4.5, include=T}
+pic_mean <- as.data.frame(
+  rbind(pic_SSR_mean, pic_SNP_mean)
+)
+pic_mean$marker <- c("11 SSR loci", "140 SNP loci")
+pic_mean <- pic_mean %>% 
+  rename(pic=Overall)
+
+pic_mean_p <- pic_mean %>% 
+  ggplot(aes(x=marker, y=pic)) +
+  geom_bar(stat="identity", width = 0.5,
+                     color="black", fill="grey40")
+
+pic_mean_p + 
+    theme_classic() +
+    scale_y_continuous(limits=c(0, 0.6)) +
+    theme(axis.title = element_text(size = 14), 
+    axis.text = element_text(size = 11), 
+    axis.text.x = element_text(size = 11), 
+    axis.text.y = element_text(size = 13),
+    strip.text.x = element_text(size = 11)) +
+    xlab("Marker system") +
+    ylab(expression(PIC)) +
+    ggtitle("Polymorphic Information Content")
 ```
 
