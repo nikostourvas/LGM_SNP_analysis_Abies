@@ -24,10 +24,6 @@ table_out <- function(obj, variable, name){
         return(table_out)
 }
 
-table_out2 <- function(variable){
-        means <- colMeans(variable, na.rm=T)
-}
-
 
 
 ###### basic statistics reported from poppr and their SEs

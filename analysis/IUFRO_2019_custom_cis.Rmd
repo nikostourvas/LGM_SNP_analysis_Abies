@@ -62,7 +62,7 @@ samples <- list()
 dfs <- list()
 iterations <- 10000
 for(i in 1:iterations){
-  samples[[i]] <- sample(sep_loci_pegas, size=11, replace = TRUE)
+  samples[[i]] <- sample(sep_loci_pegas, size=nLoc(obj_SSR), replace = TRUE)
 }
 ```
 
@@ -78,10 +78,8 @@ for(i in 1:iterations){
 
 ## Create genind object
 ```{r}
-suppressMessages(
 # test <- loci2genind(as.loci(dfs[[1]]) )
 genind_objects <- lapply(dfs, loci2genind)
-)
 ```
 
 ## uHe
@@ -89,18 +87,44 @@ genind_objects <- lapply(dfs, loci2genind)
 source("scripts/summary_stats.R")
 
 
-uHe_by_locus <- lapply(genind_objects, poppr2hierfstat_out, "Hexp")
+uHe_boot_by_loc_ssr <- lapply(genind_objects, poppr2hierfstat_out, "Hexp")
 
-uHe_ssr <- lapply(uHe_by_locus, colMeans, na.rm=T)
-uHe_boot <- do.call(rbind.data.frame, uHe_ssr)
+uHe_boot_ssr <- lapply(uHe_boot_by_loc_ssr, colMeans, na.rm=T)
+uHe_boot_ssr <- do.call(rbind.data.frame, uHe_boot_ssr)
 
-uhe_sd_A <- sd(uHe_boot[,1])
-uhe_sd_NR <- sd(uHe_boot[,2])
+uhe_boot_sd_A <- sd(uHe_boot_ssr[,1])
+uhe_boot_sd_NR <- sd(uHe_boot_ssr[,2])
 ```
 
 ```{r}
+# hist(uHe_boot[,1])
 
+deltastar = uHe_boot_ssr[,1] - 0.589
+
+d = quantile(deltastar, c(0.025, 0.975))
+d
+
+ci <- 0.589 - c(d[2], d[1])
+ci
 ```
+
+```{r}
+1.96 * sd(uHe_boot[,1])
+sd_test <- sd(uHe_boot[,1])
+
+test_norm <- rnorm(n=10000, mean=0.589, sd=sd_test)
+quantile(test_norm - 0.589, c(0.025, 0.975))
+```
+
+```{r}
+test_ci <- mean(uHe_boot[,1]) + 1.96 * uhe_sd_A
+```
+
+```{r}
+he_origin <- poppr2hierfstat_out(obj_SSR, "Hexp")
+sd(he_origin)
+```
+
 
 ## ne
 ```{r}
@@ -128,5 +152,14 @@ ar_boot <- do.call(rbind.data.frame, ar_ssr)
 ar_sd_A <- sd(ar_boot[,1])
 ar_sd_NR <- sd(ar_boot[,2])
 
+```
+
+
+
+```{r}
+source("scripts/bootstrap_stats.R")
+
+sims <- boot.over.loci(obj_SSR, nboot = 10)
+sim_he_ci <- boot.ci(obj_SSR, sims, statistic = "Ar", min.ar = 44)
 ```
 
