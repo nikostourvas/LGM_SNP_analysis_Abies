@@ -1,0 +1,682 @@
+---
+title: "Brousseau et al. 2016 - Is there Ascertainment bias in the Abies data set?"
+author: "Nikos Tourvas"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+bibliography: library.bib
+output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    ## toc_float: yes
+  pdf_document:
+    toc: yes
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import data sets
+## Brousseau
+```{r libraries, echo=TRUE}
+# suppressPackageStartupMessages({
+  library(adegenet)
+  library(popprxl)
+  library(hierfstat)
+  library(magrittr)
+  library(pegas)
+  ## library(genepop)
+  library(mmod)
+  library(ape)
+  library(phangorn)
+  library(tidyverse)
+  library(reshape2)
+  library(strataG)
+  library(ggplot2)
+  library(lattice)
+  library(factoextra)
+  library(ggord)
+  library(RColorBrewer)
+  ## library(ggcompoplot)
+  library(kableExtra)
+  library(pophelper)
+  library(gridExtra)
+  library(radiator)
+  library("pcadapt")
+  library("qvalue")
+  library(boot)
+# })
+```
+
+```{r}
+# custom palette
+"cb_paired"=c("#A6CEE3","#1F78B4","#B2DF8A","#33A02C","black","darkgrey")
+color_scheme <- rep(c("grey", "#A6CEE3", "#B2DF8A"), times =1, each=2)
+color_scheme_dark <- rep(c("black", "#1F78B4", "#33A02C"), times =1, each=2)
+
+color_scheme_single <- c("grey", "#A6CEE3", "#B2DF8A")
+```
+
+```{r}
+obj_br_df <- read.csv("../data/Brousseau_et_al_2016_Abies_data.csv", 
+                  header = T, 
+                  na.strings = c("?", "Uncallable", "Bad", "Missing")
+                  # ,stringsAsFactors = T
+                  , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+  )
+
+obj_br_df[obj_br_df == "AA"] <- "A/A" 
+obj_br_df[obj_br_df == "AT"] <- "A/T" 
+obj_br_df[obj_br_df == "AC"] <- "A/C" 
+obj_br_df[obj_br_df == "AG"] <- "A/G" 
+
+obj_br_df[obj_br_df == "TA"] <- "T/A" 
+obj_br_df[obj_br_df == "TT"] <- "T/T" 
+obj_br_df[obj_br_df == "TC"] <- "T/C" 
+obj_br_df[obj_br_df == "TG"] <- "T/G"
+
+obj_br_df[obj_br_df == "CA"] <- "C/A" 
+obj_br_df[obj_br_df == "CT"] <- "C/T" 
+obj_br_df[obj_br_df == "CC"] <- "C/C" 
+obj_br_df[obj_br_df == "CG"] <- "C/G"
+
+obj_br_df[obj_br_df == "GA"] <- "G/A" 
+obj_br_df[obj_br_df == "GT"] <- "G/T" 
+obj_br_df[obj_br_df == "GC"] <- "G/C" 
+obj_br_df[obj_br_df == "GG"] <- "G/G"
+
+# obj_br_df[is.na(obj_br_df)] <- "0/0"
+
+# remove excess column
+obj_br_df <- obj_br_df[, -1]
+# create a separate data.frame for population (strata)
+strata_df <- obj_br_df[, 2:4]
+strata_df <- strata_df[, -1]
+strata_df <- separate(strata_df, col = "Site", into = c("Country", "Site"),
+                      sep = "_")
+# remove population strata from data file
+obj_br_df <- obj_br_df[, -c(2:4)]
+# use ind names as rownames
+rownames(obj_br_df) <- obj_br_df[, 1]
+obj_br_df <- obj_br_df[, -1]
+#change colnames to not have dots (.)
+loci_cols <- colnames(obj_br_df)
+# replace dots with underscores
+loci_cols <- gsub(x = loci_cols, pattern = "\\.", replacement = "-")
+colnames(obj_br_df) <- loci_cols
+
+# # as.loci
+# obj_br_df <- as.loci(obj_br_df, 
+#                   col.pop = NULL
+#                   ,allele.sep = "/")
+
+# convert to genind
+obj_br <- df2genind(obj_br_df, sep = "/", ind.names = rownames(obj_br_df),
+                    ploidy = 2, type = "codom", strata = strata_df,
+                    NA.char = "NA")
+setPop(obj_br) <- ~Country/Site/Elevation
+```
+
+## LGM
+```{r}
+maf = 0
+threshold_loci = 0.1
+threshold_ind = 0.1
+
+snp <- read.csv("../data/Genotyping-1841.025-03 Grid_reformated.csv", 
+                  header = T, 
+                  na.strings = c("?", "Uncallable", "Bad", "Missing")
+                  # ,stringsAsFactors = T
+                  , check.names = F # default is TRUE, and changes the dashes to dots - which created problems
+  )
+  
+  ## Transform sample names 
+  #### This will allow hierarchical analysis when applicable 
+  #### Country / Species / Pop / Plot 
+  snp <- snp %>% 
+    mutate(Genotype = str_replace_all(Genotype, "^AB", "GR_AB_A_")) %>% #GR_Adult
+    mutate(Genotype = str_replace_all(Genotype, "^RAB", "GR_AB")) %>% #GR_Regen
+    mutate(Genotype = str_replace_all(Genotype, "_A_", "_A_1_")) %>% 
+    mutate(Genotype = str_replace_all(Genotype, "NR", "NR_"))
+  
+  ### Create a df following the guidelines of the loci format 
+  snp_loci_format <- as.data.frame(sapply(snp, gsub, pattern=':', replacement='/') )
+  # snp_loci_format <- as.data.frame(sapply(snp_loci_format, gsub, pattern=".", replacement="_"))
+  snp_loci_format <- snp_loci_format[,-1]
+  rownames(snp_loci_format) <- snp[,1]
+  
+  # change locus names (replace "newcontig" to "contig") as in Brousseau et al.
+  loci_cols <- colnames(snp_loci_format)
+  loci_cols <- gsub(x = loci_cols, pattern = "new", replacement = "")
+  colnames(snp_loci_format) <- loci_cols
+ 
+  ## Add a second column for population
+  pop1 <- replicate(124, "DE_AAL_A_1")
+  pop2 <- replicate(16, "DE_AAL_NR_1")
+  pop3 <- replicate(16, "DE_AAL_NR_2")
+  pop4 <- replicate(16, "DE_AAL_NR_3")
+  pop5 <- replicate(16, "DE_AAL_NR_4")
+  pop6 <- replicate(124, "GR_AB_A_1")
+  pop7 <- replicate(20, "GR_AB_NR_1")
+  pop8 <- replicate(18, "GR_AB_NR_2")
+  pop9 <- replicate(16, "GR_AB_NR_3")
+  pop10 <- replicate(10, "GR_AB_NR_4")
+  pop11 <- replicate(124, "SI_AAL_A_1")
+  pop12 <- replicate(16, "SI_AAL_NR_1")
+  pop13 <- replicate(16, "SI_AAL_NR_2")
+  pop14 <- replicate(16, "SI_AAL_NR_3")
+  pop15 <- replicate(16, "SI_AAL_NR_4")
+  
+  pop <- c(pop1, pop2, pop3, pop4, pop5, pop6,
+           pop7, pop8, pop9, pop10, pop11,
+           pop12, pop13, pop14, pop15)
+  
+  # pop
+  
+  snp_loci_format <- add_column(snp_loci_format, pop, .before = "contig00241-160")
+  
+  ## Create genind object 
+  data <- as.loci(snp_loci_format, 
+                  col.pop = 1
+                  ,allele.sep = "/")
+  # data
+  obj_SNP_origin <- loci2genind(data,)
+  # obj_origin
+  
+  
+  ### stratify data set 
+  strata_df <- as.data.frame(snp_loci_format$pop)
+  colnames(strata_df) <- "strata"
+  strata_df <- separate(strata_df, col = strata, sep="_", 
+                        into = c("Country", 
+                                 "Species", 
+                                 "Pop", 
+                                 "Plot"))
+  strata(obj_SNP_origin) <- strata_df
+  
+  setPop(obj_SNP_origin) <- ~Country/Pop
+  # obj_origin
+  
+  
+  # Data filtering 
+  
+  ### Remove monomorphic loci 
+  obj_SNP <- informloci(obj_SNP_origin, MAF = 0)
+  
+  ### Filter out missing data 
+  threshold_loci <- threshold_loci
+  threshold_ind <- threshold_ind
+  obj_SNP <- missingno(obj_SNP, type = "loci", cutoff = threshold_loci, 
+                       quiet = T)
+  obj_SNP <- missingno(obj_SNP, type = "genotypes", cutoff = threshold_ind, 
+                       quiet = T)
+  
+  ### Remove uninformative loci 
+  maf <- maf / nInd(obj_SNP)
+  obj_SNP <- informloci(obj_SNP, MAF = maf)
+```
+
+```{r include=T}
+paste(nInd(obj_SNP), "individuals", "and", nLoc(obj_SNP), "loci", sep=" ")
+```
+
+# Data filtering 
+<!-- ### Check for missing data -->
+```{r missing, cache=T, fig.width=10, dpi=300, eval=F}
+capture.output(
+info_table(obj_br, type = "missing", plot = TRUE, plotlab = F),
+file='NUL') 
+## capture.output is used to hide printing of the table on the console
+
+div <- summary(obj_br)
+
+# paste("Total missing data is",  round(div$NA.perc, digits = 2), "%", sep = " ")
+```
+
+```{r, include=T, fig.asp=1}
+info <- t(
+  info_table(obj_br, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data, -locus)
+
+mis <- info %>% 
+        ggplot(aes(x=locus, y=missing_data)) +
+        geom_bar(stat = "identity") +
+        geom_hline(yintercept = 0.10, colour = "red") +
+        theme(axis.text.x = element_text(colour = NA),
+              axis.ticks = element_line(colour = NA)) +
+        ggtitle("Missing data by cohort") +
+        facet_wrap(~pop, nrow=5 )
+
+mis
+```
+
+```{r dpi=300, include=T, fig.width=7, fig.height=7}
+setPop(obj_br) <- ~Country/Site
+div <- summary(obj_br)
+
+all_br <- as.data.frame(div$pop.n.all)
+all_br <- all_br %>% 
+  mutate(population = rownames(all_br)) %>% 
+  rename(count = "div$pop.n.all")
+
+all_br$count <- as.integer(all_br$count)
+all_br$origin <- "Brousseau et al. 2016"
+
+# str(all)
+
+p_na <- ggplot(all_br, aes(x=population, y=count, fill=population) ) +
+  geom_bar(stat = "identity", 
+           color = "black",
+           width = .7) +
+  geom_text(aes(label=count, vjust = 1.6, size=2)) +
+  # ggtitle("Total Number of alleles") +
+  # scale_fill_manual(values=color_scheme_single) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14, angle = 90), 
+    axis.text.y = element_text(size = 14),
+    plot.title = element_text(size = 16)) +
+  labs(x = "Population", y = "Total N of Alleles")
+
+
+p_na
+
+# ggsave(filename = "../results/figs/Abies_Na_SNP.png",
+#        width = 2.5, height = 2.5, units = "in", dpi = 300)
+```
+
+```{r}
+obj_br_origin <- obj_br
+
+#<!-- ### Remove uninformative (monomorphic) loci -->
+
+maf <- 0 
+
+obj_br <- informloci(obj_br_origin, MAF = maf)
+
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+
+obj_br <- missingno(obj_br, type = "loci", cutoff = threshold_loci)
+
+obj_br <- missingno(obj_br, type = "genotypes", cutoff = threshold_ind)
+```
+```{r, include=T, fig.asp=1}
+info <- t(
+  info_table(obj_br, type = "missing", plot = F, plotlab = F) )
+
+info <- as.data.frame(info[,-ncol(info)])
+
+info$locus <- rownames(info)
+
+info <- gather(info, key = pop, value = missing_data, -locus)
+
+mis <- info %>% 
+        ggplot(aes(x=locus, y=missing_data)) +
+        geom_bar(stat = "identity") +
+        geom_hline(yintercept = 0.10, colour = "red") +
+        theme(axis.text.x = element_text(colour = NA),
+              axis.ticks = element_line(colour = NA)) +
+        ggtitle("Missing data by cohort") +
+        facet_wrap(~pop, nrow=5 )
+
+mis
+```
+
+```{r include=T}
+paste(nInd(obj_br), "individuals", "and", nLoc(obj_br), "loci", sep=" ")
+```
+
+# Descriptive statistics
+## Br
+```{r}
+source("scripts/summary_stats.R")
+## N
+N_by_locus <- basic.stats(obj_br)[["n.ind.samp"]]
+obj_list <- seppop(obj_br)
+N <- list()
+for(i in 1:length(obj_list)){
+        N[[i]] <- length(obj_list[[i]]@pop)
+}
+N <- melt(N)
+N <- c(N[,1], sum(N[,1]))
+
+## na
+na_by_locus_br <- poppr2hierfstat_out(obj_br, "allele")
+na_br <- table_out(obj_br, na_by_locus_br, "na")
+
+
+## uHe
+uHe_by_locus_br <- poppr2hierfstat_out(obj_br, "Hexp")
+uHe_br <- table_out(obj_br, uHe_by_locus_br, "uHe")
+
+## Ho
+Ho_by_locus_br <- basic.stats(obj_br)[["Ho"]]
+Ho_br <- table_out(obj_br, Ho_by_locus_br, "Ho")
+
+## ne
+ne_by_locus_Hs_br <- 1 / (1 - (basic.stats(obj_br)[["Hs"]]))
+ne_Hs_br <- table_out(obj_br, ne_by_locus_Hs_br, "ne")
+
+## ## ne
+## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_br)[["Hs"]]))
+## ne_Hs <- table_out(obj_br, ne_by_locus, "ne")
+
+## Fis
+Fis_by_locus_br <- basic.stats(obj_br)[["Fis"]]
+Fis_br <- table_out(obj_br, Fis_by_locus_br, "Fis") ## better use boot.ppfis
+
+## Private alleles
+PA_br <- rowSums(poppr::private_alleles(obj_br, count.alleles=F))
+PA_br <- data.frame(PA_br)
+PA_br <- rbind(PA_br, Total=colSums(PA_br))
+```
+
+Total N of Alleles
+```{r dpi=300, include=T, fig.width=7, fig.height=7}
+setPop(obj_br) <- ~Country/Site
+div <- summary(obj_br)
+
+all_br <- as.data.frame(div$pop.n.all)
+all_br <- all_br %>% 
+  mutate(population = rownames(all_br)) %>% 
+  rename(count = "div$pop.n.all")
+
+all_br$count <- as.integer(all_br$count)
+all_br$origin <- "Brousseau et al. 2016"
+
+# str(all)
+
+p_na <- ggplot(all_br, aes(x=population, y=count, fill=population) ) +
+  geom_bar(stat = "identity", 
+           color = "black",
+           width = .7) +
+  geom_text(aes(label=count, vjust = 1.6, size=2)) +
+  # ggtitle("Total Number of alleles") +
+  # scale_fill_manual(values=color_scheme_single) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14, angle = 90), 
+    axis.text.y = element_text(size = 14),
+    plot.title = element_text(size = 16)) +
+  labs(x = "Population", y = "Total N of Alleles")
+
+
+p_na
+
+# ggsave(filename = "../results/figs/Abies_Na_SNP.png",
+#        width = 2.5, height = 2.5, units = "in", dpi = 300)
+```
+Loci that were not amplified for BG and GR were removed in previous steps.
+
+Total N of Alleles
+```{r dpi=300, include=T, fig.width=7, fig.height=7}
+lineages <- c("Alps", "Alps", "Alps", "Alps", "Pyrenees", "Apennines",
+              "Apennines", "Fagaras", "Pirin", "Peloponnese")
+setPop(obj_br) <- ~Country/Site
+div <- summary(obj_br)
+
+all_br <- as.data.frame(div$pop.n.all)
+all_br <- all_br %>% 
+  mutate(population = rownames(all_br)) %>% 
+  rename(count = "div$pop.n.all")
+
+all_br$count <- as.integer(all_br$count)
+all_br$origin <- "Brousseau et al. 2016"
+all_br$lineages <- lineages
+
+# str(all)
+
+p_na <- ggplot(all_br, aes(x=population, y=count, fill=lineages) ) +
+  geom_bar(stat = "identity", 
+           color = "black",
+           width = .7) +
+  geom_text(aes(label=count, vjust = 1.6, size=2)) +
+  # ggtitle("Total Number of alleles") +
+  # scale_fill_manual(values=color_scheme_single) +
+  theme_classic() +
+  theme(legend.position = "bottom") + guides(size = FALSE) +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14, angle = 90), 
+    axis.text.y = element_text(size = 14),
+    plot.title = element_text(size = 16),
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14)) +
+  labs(x = "Population", y = "Total N of Alleles")
+
+
+p_na
+
+# ggsave(filename = "../results/figs/Abies_Na_SNP.png",
+#        width = 2.5, height = 2.5, units = "in", dpi = 300)
+```
+If the Ab hypothesis is true, the same SNPs should be missing from proximal pops
+far from Mt Ventoux. Check?
+
+## SNP
+```{r}
+## N
+N_by_locus <- basic.stats(obj_SNP)[["n.ind.samp"]]
+obj_list <- seppop(obj_SNP)
+N <- list()
+for(i in 1:length(obj_list)){
+        N[[i]] <- length(obj_list[[i]]@pop)
+}
+N <- melt(N)
+N <- c(N[,1], sum(N[,1]))
+
+## na
+na_by_locus_SNP <- poppr2hierfstat_out(obj_SNP, "allele")
+na_SNP <- table_out(obj_SNP, na_by_locus_SNP, "na")
+
+
+## uHe
+uHe_by_locus_SNP <- poppr2hierfstat_out(obj_SNP, "Hexp")
+uHe_SNP <- table_out(obj_SNP, uHe_by_locus_SNP, "uHe")
+
+## Ho
+Ho_by_locus_SNP <- basic.stats(obj_SNP)[["Ho"]]
+Ho_SNP <- table_out(obj_SNP, Ho_by_locus_SNP, "Ho")
+
+## ne
+ne_by_locus_Hs_SNP <- 1 / (1 - (basic.stats(obj_SNP)[["Hs"]]))
+ne_Hs_SNP <- table_out(obj_SNP, ne_by_locus_Hs_SNP, "ne")
+
+## ## ne
+## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_SNP)[["Hs"]]))
+## ne_Hs <- table_out(obj_SNP, ne_by_locus, "ne")
+
+## Fis
+Fis_by_locus_SNP <- basic.stats(obj_SNP)[["Fis"]]
+Fis_SNP <- table_out(obj_SNP, Fis_by_locus_SNP, "Fis") ## better use boot.ppfis
+
+## Private alleles
+
+PA_SNP_p <- poppr::private_alleles(obj_SNP, count.alleles=F)
+if(is.numeric(PA_SNP_p)){
+  PA_SNP <- rowSums(PA_SNP_p)
+  PA_SNP <- data.frame(PA)
+  PA <- rbind(PA, Total=colSums(PA_SNP))
+}else {
+  PA_SNP <- rep(0, length(popNames(obj_SNP)) + 1 )
+}
+
+```
+
+Total N of Alleles
+```{r dpi=300, include=T, fig.width=2.5, fig.height=2.5}
+setPop(obj_SNP) <- ~Country
+div <- summary(obj_SNP)
+
+all_SNP <- as.data.frame(div$pop.n.all)
+all_SNP <- all_SNP %>% 
+  mutate(population = rownames(all_SNP)) %>% 
+  rename(count = "div$pop.n.all")
+
+all_SNP$count <- as.integer(all_SNP$count)
+all_SNP$origin <- "LGM"
+
+# str(all)
+
+p_na <- ggplot(all_SNP, aes(x=population, y=count, fill=population) ) +
+  geom_bar(stat = "identity",
+           color = "black",
+           width = .7) +
+  geom_text(aes(label=count, vjust = 1.6, size=2)) +
+  # ggtitle("Total Number of alleles") +
+  scale_fill_manual(values=color_scheme_single) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    plot.title = element_text(size = 16)) +
+  labs(x = "Cohort", y = "Count")
+
+p_na
+# 
+# ggsave(filename = "../results/figs/Abies_Na_SNP.png",
+#        width = 2.5, height = 2.5, units = "in", dpi = 300)
+
+# setPop(obj_SNP) <- ~Country/Pop
+```
+
+Afterwards in order to 
+```{r}
+locNames(obj_br_origin)
+locNames(obj_br)
+```
+
+# Shared SNPs
+```{r}
+Reduce(intersect, list(locNames(obj_SNP_origin),
+                       locNames(obj_br_origin)))
+
+common_loci <- Reduce(intersect, list(locNames(obj_SNP),
+                       locNames(obj_br)))
+
+# it is the same as common_loci
+common_loci_gr <- Reduce(intersect, list(locNames(obj_SNP_gr),
+                       locNames(obj_br_gr)))
+```
+139 loci are shared between the two data sets (after filtering)
+This means that a different subset of loci failed to amplify in each experiment
+
+
+# NonPoly
+## Which SNPs are not polymorphic for each GR data set?
+```{r}
+setPop(obj_SNP) <- ~Country
+obj_SNP_gr <- popsub(obj_SNP, sublist = "GR")
+
+nonpoly_snp_gr <- data.frame(n = nAll(obj_SNP_gr)) %>% 
+  filter(n == 1) %>% 
+  rownames()
+
+setPop(obj_br) <- ~Country
+obj_br_gr <- popsub(obj_br, sublist = "GR")
+
+nonpoly_br_gr <- data.frame(n = nAll(obj_br_gr)) %>% 
+  filter(n == 1) %>% 
+  rownames()
+
+nonpoly_common_gr <- Reduce(intersect, list(nonpoly_br_gr,
+                       nonpoly_snp_gr))
+nonpoly_common_gr
+```
+Should I do a permutation test?
+
+## Are the nonpoly loci not in common found in both data sets?
+```{r}
+Reduce(intersect, list(common_loci,
+                       nonpoly_snp_gr))
+
+Reduce(intersect, list(common_loci,
+                       nonpoly_br_gr))
+```
+Out of 59 nonpoly loci in LGM GR, 47 of them are also found in Brousseau et al.
+
+
+## What abouts loci that are not polymorphic between SI & GR
+```{r}
+setPop(obj_SNP) <- ~Country
+obj_SNP_sigr <- popsub(obj_SNP, sublist = c("GR", "SI"))
+
+obj_SNP_sigr <- informloci(obj_SNP_sigr, MAF = 0, cutoff = 0)
+
+#keep only GR pop
+obj_SNP_sigr <- popsub(obj_SNP_sigr, sublist = "GR")
+
+# find nonpoly loci
+nonpoly_snp_sigr <- data.frame(n = nAll(obj_SNP_sigr)) %>% 
+  filter(n == 1) %>% 
+  rownames()
+nonpoly_snp_sigr
+```
+
+# Common Data Set
+Subsample both data sets so that they only contain loci that amplified
+successfully (missing data < 10%) in both experiments
+```{r}
+obj_SNP_c <- obj_SNP[loc = common_loci]
+obj_br_c <- obj_br[loc = common_loci]
+```
+
+## NonPoly
+Which SNPs are not polymorphic for each GR data set?
+```{r}
+setPop(obj_SNP_c) <- ~Country
+obj_SNP_gr <- popsub(obj_SNP_c, sublist = "GR")
+
+nonpoly_snp_gr <- data.frame(n = nAll(obj_SNP_gr)) %>% 
+  filter(n == 1) %>% 
+  rownames()
+
+setPop(obj_br_c) <- ~Country
+obj_br_gr <- popsub(obj_br_c, sublist = "GR")
+
+nonpoly_br_gr <- data.frame(n = nAll(obj_br_gr)) %>% 
+  filter(n == 1) %>% 
+  rownames()
+
+nonpoly_common_gr <- Reduce(intersect, list(nonpoly_br_gr,
+                       nonpoly_snp_gr))
+nonpoly_common_gr
+```
+
+So, 45 out of 47 common nonpoly loci for LGM GR, are also nonpoly in GR pellop.
+
+What about the comparison with BG A. alba
+```{r}
+setPop(obj_br_c) <- ~Country
+obj_br_bg <- popsub(obj_br_c, sublist = "BG")
+
+nonpoly_br_bg <- data.frame(n = nAll(obj_br_bg)) %>% 
+  filter(n == 1) %>% 
+  rownames()
+
+nonpoly_common_bg_gr <- Reduce(intersect, list(nonpoly_br_bg,
+                       nonpoly_snp_gr))
+nonpoly_common_bg_gr
+```
+So, 43 out of 47 nonpoly loci in LGM GR, are also nonpoly in BG A. alba
+
+```{r}
+library(nVennR)
+venn <- plotVenn(list(BG=nonpoly_br_bg, 
+              GR_Olympus=nonpoly_snp_gr, 
+              GR_Pelop=nonpoly_br_gr), 
+         nCycles = 2000)
+
+showSVG(venn)
+```
+

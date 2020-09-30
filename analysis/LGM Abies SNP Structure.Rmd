@@ -1,0 +1,161 @@
+---
+title: "LGM Abies SNP Structure"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source("import_snp_abies.R")
+```
+
+```{r}
+threshold_loci <- 0.1
+threshold_ind <- 0.1
+maf <- 5
+obj <- import.snp.abies0(threshold_ind, threshold_loci, maf)
+```
+
+### Structure
+
+#### 1000 Burn-in iterations, 5000 MCMC repititions
+#### ATTN! A lower than optimal number of repititions was used, due to computational constrains.
+#### Repeating the analysis using a higher number of repitions is required to ensure its robustness.
+```{r}
+#change hierarchy
+setPop(obj) <- ~Country/Pop
+```
+
+```{r structure_runs}
+library(strataG)
+
+## Convert input file
+        loci <- genind2loci(obj)
+        
+        ## obj_g <- genind2gtypes(obj)
+        obj_g <- loci2gtypes(loci)
+        
+# Limit characters in ind names, to obey Structure limit
+obj_g@data$ids <- str_replace_all(obj_g@data$ids, "AAL_", "")
+obj_g@data$ids <- str_replace_all(obj_g@data$ids, "AB_", "")        
+
+
+struct <- structureRun(obj_g, k = 2:4, num.k.rep = 2,
+                            burnin = 150, numreps = 50, noadmix = F,
+                            freqscorr = T, 
+                            ## pop.prior = , 
+                            ## locpriorinit = , maxlocprior = , ## locprior
+                            ## gensback = , migrprior = , ## usepopinfo
+                            ## pfrompopflagonly = , popflag = , ## usepopinfo
+                            ## pops = c(""),
+                            delete.files = F)
+
+name <- list.files()[grepl("gtypes*", list.files())]
+to <- paste0("../results/", name)
+file.rename(name, to)
+
+
+```
+
+<!-- #### Tests for optimal K -->
+```{r evanno}
+
+library(pophelper)
+## read structure runs from pophelper
+sfiles <- list.files(path = to,
+                     pattern = "out_f", full.names = T, recursive = T)
+
+        ## include individual names from STRUCTURE file as row names
+slist <- readQ(files=sfiles, indlabfromfile=T)
+
+## Evanno pophelper
+sr1 <- summariseQ(tabulateQ(slist))
+p <- evannoMethodStructure(data=sr1,exportplot=F,returnplot=T,
+                           returndata=F,basesize=12,linesize=0.7)
+```
+
+```{r evanno2, dpi=300, fig.width=10} 
+library(gridExtra)
+grid.arrange(p)
+```
+
+
+```{r barplots-structure}
+## clumpp through pophelper
+## clumppExport(qlist=slist[16:20], useexe=T)
+
+## show membership using pophelper
+## read aligned file
+## aligned <- readQ("./pop_K5/pop_K5-combined-aligned.txt")
+
+## plot
+## copy & paste the population column from genalex input file to a csv
+# pop_labs <- read.delim("Castanea_SSR_HRM_pops.csv", 
+#                        header=F,stringsAsFactors=F)
+
+loci <- genind2loci(obj)
+
+pop_labs <- data.frame(loci[,1], stringsAsFactors = F)
+names(pop_labs) <- "Pop" 
+pop_labs$Pop <- as.character(pop_labs$Pop)
+
+## FOR MORE COLOR COMBINATIONS CHECK:
+## http://colorbrewer2.org/##type=diverging&scheme=BrBG&n=4
+clist <- list(
+        "shiny"=c("#1D72F5","#DF0101","#77CE61", "#FF9326","#A945FF","#0089B2","#FDF060","#FFA6B2","#BFF217","#60D5FD","#CC1577","#F2B950","#7FB21D","#EC496F","#326397","#B26314","#027368","#A4A4A4","#610B5E"),
+        "strong"=c("#11A4C8","#63C2C5","#1D4F9F","#0C516D","#2A2771","#396D35","#80C342","#725DA8","#B62025","#ED2224","#ED1943","#ED3995","#7E277C","#F7EC16","#F8941E","#8C2A1C","#808080"),
+        "oceanfive"=c("#00A0B0", "#6A4A3C", "#CC333F", "#EB6841", "#EDC951"),
+        "keeled"=c("#48B098", "#91CB62", "#FFEE3B", "#FB9013", "#FF3C28"),
+        "vintage"=c("#400F13", "#027368", "#A3BF3F", "#F2B950", "#D93A2B"),
+        "muted"=c("#46BDDD","#82DDCE","#F5F06A","#F5CC6A","#F57E6A"),
+        "teal"=c("#CFF09E","#A8DBA8","#79BD9A","#3B8686","#0B486B"),
+        "merry"=c("#5BC0EB","#FDE74C","#9BC53D","#E55934","#FA7921"),
+        "funky"=c("#A6CEE3", "#3F8EAA", "#79C360", "#E52829", "#FDB762","#ED8F47","#9471B4"),
+        "retro"=c("#01948E","#A9C4E2","#E23560","#01A7B3","#FDA963","#323665","#EC687D"),
+        "cb_paired"=c("#A6CEE3","#1F78B4","#B2DF8A","#33A02C","#FB9A99","#E31A1C","#FDBF6F","#FF7F00","#CAB2D6","#6A3D9A","#FFFF99","#B15928"),
+        "cb_set3"=c("#8DD3C7","#FFFFB3","#BEBADA","#FB8072","#80B1D3","#FDB462","#B3DE69","#FCCDE5","#D9D9D9","#BC80BD","#CCEBC5","#FFED6F"),
+        "morris"=c("#4D94CC","#34648A","#8B658A","#9ACD32","#CC95CC","#9ACD32","#8B3A39","#CD6601","#CC5C5B","#8A4500"),
+        "wong"=c("#000000","#E69F00","#56B4E9","#009E73","#F0E442","#006699","#D55E00","#CC79A7"),
+        "krzywinski"=c("#006E82","#8214A0","#005AC8","#00A0FA","#FA78FA","#14D2DC","#AA0A3C","#FA7850","#0AB45A","#F0F032","#A0FA82","#FAE6BE"))
+
+p2 <- plotQ(slist[1],returnplot=T,exportplot=F,quiet=T,basesize=11,
+            # showindlab=T, useindlab=T, 
+            ## indlabwithgrplab=T,
+            showsp = T, splab = "K=2", splabsize = 11,
+            showyaxis=T, 
+            # showticks=T, ticksize=0.3, ticklength=0.2, ## y axis
+            panelspacer=0.4,
+            grplab = pop_labs,
+            grplabsize=4, linesize=0.8, pointsize=4,
+            ## sortind="all",
+            divgrp = "Pop", divsize=0.5,
+            clustercol=clist$wong,
+            panelratio=c(11,1))
+
+## grid.arrange(p2$plot[[1]])
+
+p3 <- plotQ(slist[6],returnplot=T,exportplot=F,quiet=T,basesize=11,
+            # showindlab=T, useindlab=T, 
+            ## indlabwithgrplab=T,
+            showsp = T, splab = "K=3", splabsize = 11,
+            showyaxis=T, 
+            # showticks=T, ticksize=0.3, ticklength=0.2, ## y axis
+            panelspacer=0.4,
+            grplab = pop_labs,
+            grplabsize=4, linesize=0.8, pointsize=4,
+            ## sortind="all",
+            divgrp = "Pop", divsize=0.5,
+            clustercol=clist$wong,
+            panelratio=c(11,1))
+
+## grid.arrange(p3$plot[[1]])
+```
+
+```{r barplots-structure2, fig.width=10}
+## A new chunk was created for plotting to avoid producing an empty plot
+## https://support.rstudio.com/hc/en-us/community/posts/239529128-Notebooks-grid-newpage
+grid.arrange(p2$plot[[1]])
+grid.arrange(p3$plot[[1]])
+```

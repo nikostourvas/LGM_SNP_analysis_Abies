@@ -4,13 +4,6 @@ author: "Nikos Tourvas"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 bibliography: library.bib
 output:
-  html_notebook:
-    code_folding: hide
-    theme: united
-    toc: yes
-    toc_float: yes
-    toc_depth: 3
-    self_contained: no
   html_document:
     code_folding: hide
     theme: united
@@ -410,6 +403,15 @@ Reduce(intersect, list(outliers_pcadapt,
 ```
 No common outlier loci detected
 
+#### matrix with results from all software
+```{r}
+out_mat <- cbind(outliers_bayescan,
+                 outliers_fdist2,
+                 outliers_OF,
+                 outliers_pcadapt)
+out_mat
+write.csv(out_mat, file = "../results/LGM_SNP_GR_DE_SI_outliers_matrix.csv")
+```
 
 
 <!-- # Logistic regression : linking outliers and environmental factor -->

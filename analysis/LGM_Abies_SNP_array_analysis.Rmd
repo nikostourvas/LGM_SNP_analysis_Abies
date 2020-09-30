@@ -4,12 +4,6 @@ author: "Nikos Tourvas"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 bibliography: library.bib
 output:
-  html_notebook:
-    code_folding: hide
-    theme: united
-    toc: yes
-    toc_float: yes
-    toc_depth: 3
   html_document:
     code_folding: hide
     theme: united
@@ -50,6 +44,7 @@ knitr::opts_chunk$set(include = FALSE, echo=FALSE)
   library(radiator)
   library("pcadapt")
   library("qvalue")
+  library(boot)
 # })
 ```
 
@@ -265,7 +260,8 @@ test <- seppop(obj) %>%
 ```
 
 
-```{r maf2}
+```{r maf2, eval=F}
+# DECIDE NOT TO USE MAF FILTER!!!!!
 maf <- 5 / nInd(obj)
 maf
 
@@ -437,34 +433,57 @@ Ho: observed heterozygosity
 uHe: unbiased expected heterozygosity - gene diversity [@nei_EstimationAverageHeterozygosity_1978]  
 Fis: inbreeding coefficient [@nei_MolecularEvolutionaryGenetics_1987]
 
-
 ```{r}
-uHe <- uHe %>% 
-  mutate(upper = uHe + 1.96 * SE_uHe) %>% 
-  mutate(lower = uHe - 1.96 * SE_uHe) %>% 
-  add_column(population = c(popNames(obj), "Total") )
+# custom palette
+"cb_paired"=c("#A6CEE3","#1F78B4","#B2DF8A","#33A02C","black","darkgrey")
+color_scheme <- rep(c("grey", "#A6CEE3", "#B2DF8A"), times =1, each=2)
+color_scheme_dark <- rep(c("black", "#1F78B4", "#33A02C"), times =1, each=2)
+
+color_scheme_single <- c("grey", "#A6CEE3", "#B2DF8A")
 ```
 
-```{r include=T}
+```{r}
+# Parametric confidence intervals
+uHe <- uHe %>%
+  mutate(upper = uHe + 1.96 * SE_uHe) %>%
+  mutate(lower = uHe - 1.96 * SE_uHe) %>%
+  add_column(population = c(popNames(obj), "Total") )
+
+# Non-parametric confidence intervals
+source("scripts/bootstrap.R")
+uHe_boot <- boot.param.sd(uHe_by_locus, nboot = 10000)
+plot(uHe_boot$res, index=2)
+uHe_boot.ci <- boot.ci(uHe_boot$res)
+
+```
+
+```{r include=T fig.width = 2.5, fig.height=4} 
 uHe2 <- uHe[-nrow(uHe),] %>%
   add_column(age = c("A","NR",
                             "A","NR",
                             "A","NR"))
 
-p <- ggplot(uHe2, aes(x=population, y=uHe, fill = age)) +
+p <- ggplot(uHe2, aes(x=population, y=uHe, fill = population)) +
   geom_bar(stat = "identity", 
            color="black",
            # fill = c("white", "lightgrey"),
            width = .6) +
   scale_y_continuous(breaks = seq(0, 0.3, 0.05)) +
-  # geom_errorbar(aes(ymin=lower, ymax=upper),
-  #               width = .3) +
-  ggtitle("Expected Heterozygosity") +
+  geom_errorbar(aes(ymin=lower, ymax=upper),
+                width = .3) +
+  # ggtitle("Expected Heterozygosity") +
   theme_classic() +
-  scale_fill_manual(values=c("white", "lightgrey") ) +
+  # scale_fill_manual(values=c("white", "lightgrey") ) +
+  scale_fill_manual(values=color_scheme) +
   theme(legend.position = "none")
 
-p 
+p + theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 12, angle = 90), 
+    axis.text.y = element_text(size = 14)) +
+    labs(y = "Gene Diversity", x = "Population", size = 14) 
+
+ggsave(filename = "../results/figs/Abies_Gene-diversity-SNP.png", 
+       width = 4, height = 4, units = "in", dpi=300)
 ```
 
 ```{r include=T}
@@ -473,14 +492,21 @@ uHe_by_locus_tidy <- gather(as.data.frame(uHe_by_locus),
                             value = "uHe")
 
 uHe_by_locus_tidy %>% 
-ggplot(aes(x = population, y = uHe) ) +
+ggplot(aes(x = population, y = uHe, fill = population) ) +
   geom_violin() +
-  # geom_boxplot(width=.1) +
-  stat_summary(fun.y=mean, 
-                 geom="point") +
-  ggtitle("uHe distribution and mean value") +
-  theme_classic()
+  geom_boxplot(width=0.15, color = "black", alpha = 0.2) +
+  # stat_summary(fun=mean, geom="point") +
+  # ggtitle("uHe distribution and mean value") +
+  scale_fill_manual(values=color_scheme) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 12, angle = 90), 
+    axis.text.y = element_text(size = 14)) +
+    labs(y = "Gene Diversity", x = "Population", size = 14)
 
+ggsave(filename = "../results/figs/Abies_Gene-diversity1-SNP.png", 
+       width = 7, height = 4, units = "in", dpi=300)
 ```
 Distribution of uHe is not normal, so 95% CIs of previous graph are probably misleading
 
@@ -497,18 +523,29 @@ Fis <- Fis %>%
 
 ```{r include=T}
 Fis %>% 
-ggplot(aes(x=population, y=Fis)) +
+ggplot(aes(x=population, y=Fis, color=population)) +
   geom_point(stat = "identity", 
-           color="black", fill = "lightgrey",
-           size = 2) +
+           color="black",
+           size = 2.5) +
   scale_y_continuous(breaks = seq(-0.5, 0.5, 0.02)) +
   geom_errorbar(aes(ymin=ll, ymax=hl),
-                width = .3) +
+                width = .4, size = 1) +
+    geom_hline(yintercept =  0, linetype = "dashed") +
   ggtitle("Fis (95% CIs)") +
-  theme_classic()
+  scale_color_manual(values=color_scheme_dark) +
+  theme_classic()+
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 12, angle = 90), 
+    axis.text.y = element_text(size = 14)) +
+  ylab(expression(paste(F[IS]))) + xlab("Population")
+
+ggsave(filename = "../results/figs/Abies_FIS-SNP.png", 
+       width = 4, height = 4, units = "in", dpi=300)
 ```
 
-```{r dpi=300, include=T}
+```{r dpi=300, include=T, fig.width=2.5, fig.height=2.5}
+setPop(obj) <- ~Country
 div <- summary(obj)
 
 all <- as.data.frame(div$pop.n.all)
@@ -520,12 +557,27 @@ all$count <- as.integer(all$count)
 
 # str(all)
 
-ggplot(all, aes(x=population, y=count) ) +
+p_na <- ggplot(all, aes(x=population, y=count, fill=population) ) +
   geom_bar(stat = "identity", 
-           color = "black", fill = "white",
-           width = .8) +
-  geom_text(aes(label=count, vjust = 1.6)) +
-  ggtitle("Total Number of alleles per population")
+           color = "black",
+           width = .7) +
+  geom_text(aes(label=count, vjust = -0.2, size=2)) +
+  # ggtitle("Total Number of alleles") +
+  scale_fill_manual(values=color_scheme_single) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14), 
+    axis.text.y = element_text(size = 14),
+    plot.title = element_text(size = 16)) +
+  labs(x = "Population", y = "Total N of Alleles")
+
+p_na
+
+ggsave(filename = "../results/figs/Abies_Na_SNP.png",
+       width = 3.5, height = 4, units = "in", dpi = 300)
+
+setPop(obj) <- ~Country/Pop
 ```
 
 ```{r, include=F, fig.width=10}
@@ -557,7 +609,7 @@ temp <- seppop(obj_light)
 ```
 
 #### Distribution of allele frequencies
-```{r, include=T}
+```{r, include=T, fig.width=10}
 temp <- seppop(obj_light) 
   myFreq <- lapply(temp, glMean)
   myFreq <- lapply(myFreq, function(x){
@@ -608,10 +660,17 @@ if(is.data.frame(private)){
 ggplot(private) + geom_tile(aes(x = population,
                                 y = allele,
                                 fill = count)) +
-  ggtitle("Private alleles per cohort") +
-  scale_fill_viridis_c()
+  # ggtitle("Private Alleles per Cohort") +
+  scale_fill_viridis_c() +
+    theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14), 
+    axis.text.y = element_text(size = 8)) +
+  xlab("Population") + ylab("Allele")
   
 }
+
+ggsave(filename = "../results/figs/Abies_PA_SNP.png",
+       width = 5, height = 4, units = "in", dpi = 300)
 
 setPop(obj) <- ~Country/Pop
 ```
@@ -636,6 +695,42 @@ if(is.numeric(PA)){
                       
 
 setPop(obj) <- ~Country/Pop
+```
+
+Total N of Alleles and Private alleles per Country
+```{r dpi=300, include=T}
+setPop(obj) <- ~Country
+div <- summary(obj)
+
+all <- as.data.frame(div$pop.n.all)
+all <- all %>% 
+  mutate(population = rownames(all)) %>% 
+  rename(count = "div$pop.n.all")
+
+all$count <- as.integer(all$count)
+all$private <- PA[-4, ]
+all_tidy <- all %>% 
+        pivot_longer(-population,
+                     names_to = "type",
+                     values_to = "value")
+
+# str(all)
+
+ggplot(all_tidy, aes(x=population, y=value, fill=type) ) +
+  geom_bar(stat = "identity", position = position_dodge(),
+           color = "black",
+           width = .8) +
+  # geom_text(aes(label=value, vjust = 1.6, size=1)) +
+  ggtitle("Total Number of alleles per population") +
+  scale_fill_manual(values=color_scheme_single) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14)) 
+
+setPop(obj) <- ~Country/Pop
+
 ```
 
 ### LD
@@ -696,7 +791,7 @@ LD_list_df.long[[i]] <- na.omit(
 # significant LD after multiple test correction
 for(i in popNames(obj)){
 LD_list_df.long[[i]]$p.adjust <- p.adjust(LD_list_df.long[[i]]$pvalue, 
-                              method = "holm")
+                              method = "fdr")
 }
 
 LD_sig <- lapply(LD_list_df.long, filter,
@@ -1126,6 +1221,13 @@ poppr.amova(obj, ~Country/Pop, within = F)
 ### Hierarchical AMOVA - within variation included (as calculated using Arlequin)
 poppr.amova(obj, ~Country/Pop, within = T)
 ```
+
+### Hierarchical AMOVA - within variation included (as calculated using Arlequin)
+```{r amova_arlequin2, cache=T, include=T}
+### Hierarchical AMOVA - within variation included (as calculated using Arlequin)
+amova_hf <- poppr.amova(obj, ~Species/Country/Pop, within = T)
+amova_hf
+poppr.amovgea```
 
 ### IBD
 ```{r ibd, fig.height=4, fig.width=4, cache=T, dpi=300, include=T}

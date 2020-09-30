@@ -395,12 +395,12 @@ uHe_SSR <- uHe_SSR %>%
 ```
 
 ```{r include=T, eval=F}
-# uHe2 <- uHe[-nrow(uHe),] %>%
-#   add_column(age = c("A","NR",
-#                             "A","NR",
-#                             "A","NR"))
+uHe2 <- uHe[-nrow(uHe),] %>%
+  add_column(age = c("A","NR",
+                            "A","NR",
+                            "A","NR"))
 
-p <- ggplot(uHe, aes(x=population, y=uHe, fill = population)) +
+p <- ggplot(uHe2, aes(x=population, y=uHe, fill = population)) +
   geom_bar(stat = "identity", 
            color="black",
            # fill = c("white", "lightgrey"),
@@ -839,7 +839,7 @@ Make comparison data.frames
 Total N of Alleles
 ```{r fig.width=6, fig.height=4}
 colnames(all_SSR) <- c("SSR", "Cohort")
-colnames(all_EST_SSR) <- c("EST SSR", "Cohort")
+colnames(all_EST_SSR) <- c("EST_SSR", "Cohort")
 colnames(all_SNP) <- c("SNP", "Cohort")
 all <- cbind(all_SSR,
              EST_SSR = all_EST_SSR[,1],
@@ -866,7 +866,7 @@ p_na <- ggplot(all, aes(x=Cohort, y=N, fill=Cohort) ) +
     axis.text.y = element_text(size = 14),
     plot.title = element_text(size = 16),
     strip.text = element_text(size = 14)) +
-  labs(x = "Population", y = "Total N of Alleles")
+  labs(x = "Cohort", y = "Total N of Alleles")
 
 p_na
 
@@ -879,38 +879,25 @@ ggsave(filename = "../results/figs/Abies_Na_SNP_vs_SSR_EST-SSR.png",
 Private alleles
 ```{r}
 setPop(obj_SSR) <- ~Country
-setPop(obj_EST_SSR) <- ~Country
 setPop(obj_SNP) <- ~Country
-
 PA_SSR <- as.data.frame(PA_SSR[-4,])
 PA_SSR$Cohort <- popNames(obj_SSR)
-PA_EST_SSR <- as.data.frame(PA_EST_SSR[-4,])
-PA_EST_SSR$Cohort <- popNames(obj_EST_SSR)
 PA_SNP <- as.data.frame(PA_SNP[-4,])
 PA_SNP$Cohort <- popNames(obj_SNP)
-
 colnames(PA_SSR) <- c("SSR", "Cohort")
-colnames(PA_EST_SSR) <- c("EST SSR", "Cohort")
 colnames(PA_SNP) <- c("SNP", "Cohort")
-
-PA_all <- cbind(SSR = PA_SSR,
-            EST_SSR = PA_EST_SSR[,1],
-            SNP = PA_SNP[,1])
-colnames(PA_all) <- c("SSR", "Cohort", "EST SSR", "SNP")
-PA_all <- PA_all %>% 
+PA <- cbind(PA_SSR, SNP = PA_SNP[,1])
+PA <- PA %>% 
   pivot_longer(-Cohort,
                names_to = "marker",
                values_to = "N")
 
-# preserve the order of marker systems
-PA_all$marker <- factor(all$marker, levels = unique(all$marker))
-
-p_PA_all <- ggplot(PA_all, aes(x=Cohort, y=N, fill=Cohort) ) +
+p_pa <- ggplot(PA, aes(x=Cohort, y=N, fill=Cohort) ) +
   geom_bar(stat = "identity", 
            color = "black",
            width = .7) +
-  facet_grid(. ~ marker) +
-  geom_text(aes(label=N, vjust = -0.1, size=2)) +
+  facet_grid(marker ~ .) +
+  geom_text(aes(label=N, vjust = 1.6, size=2)) +
   # ggtitle("Total Number of alleles") +
   scale_fill_manual(values=color_scheme_single) +
   theme_classic() +
@@ -919,29 +906,25 @@ p_PA_all <- ggplot(PA_all, aes(x=Cohort, y=N, fill=Cohort) ) +
     axis.text.x = element_text(size = 14), 
     axis.text.y = element_text(size = 14),
     plot.title = element_text(size = 16),
-    strip.text = element_text(size = 14)) +
-  labs(x = "Population", y = "N of Private Alleles") +
-  ylim(0, 32)
+    strip.text.y = element_text(size = 14, angle = 90)) +
+  labs(x = "Cohort", y = "N of Private Alleles")
 
-p_PA_all
+p_pa
 
-ggsave(filename = "../results/figs/Abies_PA_SNP_vs_SSR_EST-SSR.png",
-       width = 6, height = 4, units = "in", dpi = 300)
+ggsave(filename = "../results/figs/Abies_PA_SNP_vs_SSR.png",
+       width = 3, height = 4, units = "in", dpi = 300)
 
 ```
 
 FIS
-```{r fig.width=6, fig.height=4}
-Fis <- rbind(Fis_SSR, Fis_EST_SSR, Fis_SNP)
-
-# preserve the order of marker systems
-Fis$marker <- factor(Fis$marker, levels = unique(Fis$marker))
+```{r fig.width=4, fig.height=4}
+Fis <- rbind(Fis_SSR, Fis_SNP)
 
 ggplot(Fis, aes(x=population, y=Fis, color=population)) +
   geom_point(stat = "identity", 
            color="black",
            size = 2.5) +
-  facet_grid(. ~ marker) +
+  facet_grid(marker ~ .) +
   scale_y_continuous(breaks = seq(-0.5, 0.5, 0.1)) +
   geom_errorbar(aes(ymin=ll, ymax=hl),
                 width = .4, size = 1) +
@@ -953,24 +936,19 @@ ggplot(Fis, aes(x=population, y=Fis, color=population)) +
   theme(axis.title = element_text(size = 14), 
     axis.text.x = element_text(size = 12, angle = 90), 
     axis.text.y = element_text(size = 14),
-    strip.text = element_text(size = 14)) +
-  ylab(expression(paste(F[IS]))) + xlab("Population")
+    strip.text.y = element_text(size = 14, angle = 90)) +
+  ylab(expression(paste(F[IS]))) + xlab("Cohort")
 
-ggsave(filename = "../results/figs/Abies_FIS_SNP_vs_SSR_EST-SSR.png",
-       width = 6, height = 4, units = "in", dpi = 300)
+ggsave(filename = "../results/figs/Abies_FIS_SNP_vs_SSR.png",
+       width = 4, height = 4, units = "in", dpi = 300)
 ```
 
 uHE
-```{r fig.width=12, fig.height=4}
+```{r fig.width=4, fig.height=4}
 uHe_by_locus_SSR_tidy <- gather(as.data.frame(uHe_by_locus_SSR), 
                             key = "population",
                             value = "uHe")
 uHe_by_locus_SSR_tidy$marker <- "SSR"
-
-uHe_by_locus_EST_SSR_tidy <- gather(as.data.frame(uHe_by_locus_EST_SSR), 
-                            key = "population",
-                            value = "uHe")
-uHe_by_locus_EST_SSR_tidy$marker <- "EST SSR"
 
 uHe_by_locus_SNP_tidy <- gather(as.data.frame(uHe_by_locus_SNP), 
                             key = "population",
@@ -978,17 +956,13 @@ uHe_by_locus_SNP_tidy <- gather(as.data.frame(uHe_by_locus_SNP),
 uHe_by_locus_SNP_tidy$marker <- "SNP"
 
 uHe_by_locus_tidy <- rbind(uHe_by_locus_SSR_tidy,
-                           uHe_by_locus_EST_SSR_tidy,
                            uHe_by_locus_SNP_tidy)
-
-# preserve the order of marker systems
-uHe_by_locus_tidy$marker <- factor(uHe_by_locus_tidy$marker,                                    levels=unique(uHe_by_locus_tidy$marker))
 
 uHe_by_locus_tidy %>% 
 ggplot(aes(x = population, y = uHe, fill = population) ) +
   geom_violin() +
   geom_boxplot(width=0.15, color = "black", alpha = 0.2) +
-  facet_grid(. ~ marker) +
+  facet_grid(marker ~ .) +
   # stat_summary(fun=mean, geom="point") +
   # ggtitle("uHe distribution and mean value") +
   scale_fill_manual(values=color_scheme) +
@@ -997,23 +971,17 @@ ggplot(aes(x = population, y = uHe, fill = population) ) +
   theme(axis.title = element_text(size = 14), 
     axis.text.x = element_text(size = 12, angle = 90), 
     axis.text.y = element_text(size = 14),
-    strip.text = element_text(size = 14)) +
-    labs(y = "Gene Diversity", x = "Population", size = 14)
+    strip.text.y = element_text(size = 14, angle = 90)) +
+    labs(y = "Gene Diversity", x = "Cohort", size = 14)
 
-ggsave(filename = "../results/figs/Abies_uHe1_SNP_vs_SSR_EST_SSR.png",
-       width = 10, height = 4, units = "in", dpi = 300)
+ggsave(filename = "../results/figs/Abies_uHe1_SNP_vs_SSR.png",
+       width = 4, height = 4, units = "in", dpi = 300)
 ```
 
-```{r fig.width=10, fig.height=4}
+```{r fig.width=4, fig.height=4}
 uHe_SSR$marker <- "SSR"
-uHe_EST_SSR$marker <- "EST SSR"
 uHe_SNP$marker <- "SNP"
-uHe <- rbind(uHe_SSR[-7, ], 
-             uHe_EST_SSR[-7, ],
-             uHe_SNP[-7, ])
-
-# preserve the order of marker systems
-uHe$marker <- factor(uHe$marker, levels = unique(uHe$marker))
+uHe <- rbind(uHe_SSR[-7, ], uHe_SNP[-7, ])
 
 ggplot(uHe, aes(x=population, y=uHe, fill = population)) +
   geom_bar(stat = "identity", 
@@ -1023,7 +991,7 @@ ggplot(uHe, aes(x=population, y=uHe, fill = population)) +
   scale_y_continuous(breaks = seq(0, 0.8, 0.2)) +
   geom_errorbar(aes(ymin=lower, ymax=upper),
                 width = .3) +
-  facet_grid(. ~ marker, scales = "free") +
+  facet_grid(marker ~., scales = "free") +
   # ggtitle("Expected Heterozygosity") +
   theme_classic() +
   scale_fill_manual(values=color_scheme) +
@@ -1031,79 +999,11 @@ ggplot(uHe, aes(x=population, y=uHe, fill = population)) +
   theme(axis.title = element_text(size = 14), 
     axis.text.x = element_text(size = 12, angle = 90), 
     axis.text.y = element_text(size = 14),
-    strip.text = element_text(size = 14)) +
-    labs(y = "Gene Diversity", x = "Population", size = 14) 
+    strip.text.y = element_text(size = 14, angle = 90)) +
+    labs(y = "Gene Diversity", x = "Cohort", size = 14) 
 
-ggsave(filename = "../results/figs/Abies_uHe2_SNP_vs_SSR_EST_SSR.png",
-       width = 7, height = 4, units = "in", dpi = 300)
-```
-
-### PCA SSR
-```{r pca, cache=T, fig.width=5, fig.height=3, include=T}
-obj_SSR_pca <- obj_SSR_pca[loc = locNames(obj_SSR_pca[-10])]
-setPop(obj_SSR_pca) <- ~Country
-
-## In case there are missing data, replace with mean
-X <- tab(obj_SSR_pca, freq = TRUE, NA.method = "mean") 
-
-pca.obj_SSR <- dudi.pca(X, scale = FALSE, scannf = FALSE, nf = 3)
-
-fviz_eig(pca.obj_SSR, main = "Scree plot of PCA")
-```
-
-```{r pca_plots, cache=T, include=T}
-ggord(pca.obj_SSR, pop(obj_SSR_pca), arrow = NULL, txt = NULL, 
-      grp_title="Populations", ellipse=T, poly=FALSE, size=2, 
-      alpha=.8, coord_fix=F, axes = c("1", "2")) +
-  geom_hline(yintercept=0,linetype=2) + 
-  geom_vline(xintercept=0,linetype=2) +
-  ggtitle("Principal Component Analysis") +
-  scale_shape_manual('Groups', values = 0:5) +
-  scale_color_manual('Groups', values = color_scheme_single )
-
-# ggord(pca.obj, pop(obj), arrow = NULL, txt = NULL, 
-# grp_title="Populations", ellipse=T, poly=FALSE, size=2, 
-# alpha=.8, coord_fix=F, axes = c("1", "3")) +
-#   geom_hline(yintercept=0,linetype=2) + 
-#   geom_vline(xintercept=0,linetype=2) +
-#   ggtitle("Principal Component Analysis") +
-#   scale_shape_manual('Groups', values = 0:5) +
-#   scale_color_manual('Groups', values = 
-#                        c('#1b9e77','#d95f02','#7570b3',
-#                          '#e7298a','#66a61e','#e6ab02') )
-
-```
-
-### Hardy - Weinberg equilibrium
-```{r HWE, fig.width=5, fig.height=3, dpi=300, cache=TRUE, include=T}
-hw.obj <- seppop(obj_SSR, drop=T) %>% 
-  lapply(hw.test, B = 1000)
-## seppop: calculates p-value for each locus of every pop
-## B: number of permutations
-
-# Re-Write HWE p.adjust
-hw.obj.df <- hw.obj %>% 
-  lapply(as.data.frame)
-
-# Use p-values from chi-square (col 3) or exact test (col 4)
-p.adjust.HWE <- function(x){
-  mutate(x, p_adj = p.adjust(x[,4], method = "holm") )
-}
-
-hw.obj.df <- lapply(hw.obj.df, p.adjust.HWE)
-
-for(i in 1:length(hw.obj)){
-rownames(hw.obj.df[[i]]) <- rownames(hw.obj[[i]])
-}
-
-## Isolate adjusted p-values either from chi2 test (j=4) or 
-## from exact test (j=5)
-hw.mat.adj <- sapply(hw.obj.df, "[", i = TRUE, j = 5)
-rownames(hw.mat.adj) <- rownames(hw.obj.df[[1]])
-
-levelplot(t(hw.mat.adj), aspect = "fill", 
-          xlab="Pop", ylab="Marker", 
-  main = "HWE exact test p-values after Holm-Bonferroni correction")
+ggsave(filename = "../results/figs/Abies_uHe2_SNP_vs_SSR.png",
+       width = 4, height = 4, units = "in", dpi = 300)
 ```
 
 # Mantel test comparing Nei distance matrices obtained from SSR and SNP

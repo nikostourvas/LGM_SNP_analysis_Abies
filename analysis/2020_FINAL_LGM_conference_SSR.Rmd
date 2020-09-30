@@ -1,0 +1,225 @@
+---
+title: "2020 Final LifeGenMon Conference - Abies SSR analysis"
+author: "Nikos Tourvas"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+bibliography: library.bib
+output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    ## toc_float: yes
+  pdf_document:
+    toc: yes
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# SSR data set
+```{r libraries, echo=TRUE}
+# suppressPackageStartupMessages({
+  library(adegenet)
+  library(popprxl)
+  library(hierfstat)
+  library(magrittr)
+  library(pegas)
+  ## library(genepop)
+  library(mmod)
+  library(ape)
+  library(phangorn)
+  library(tidyverse)
+  library(reshape2)
+  library(strataG)
+  library(ggplot2)
+  library(lattice)
+  library(factoextra)
+  library(ggord)
+  library(RColorBrewer)
+  ## library(ggcompoplot)
+  library(kableExtra)
+  library(pophelper)
+  library(gridExtra)
+  library(radiator)
+  library("pcadapt")
+  library("qvalue")
+  library(boot)
+# })
+```
+
+```{r}
+obj_SSR <- read.genalexcel(
+  "../data/LGM_DE_SI_GR_final.xlsx",   # name of excel file
+  sheet = "Abies",             # name of sheet where the genotypes reside
+  genclone = F) 
+
+
+splitStrata(obj_SSR) <- ~Country/Pop
+```
+
+# Summary statistics
+```{r summary_statistics, cache=T}
+
+## functions
+
+###### basic statistics and their SEs
+table_out <- function(obj, variable, name){
+  
+means <- colMeans(variable, na.rm=T)
+out <- c(means, mean(variable, na.rm = T))
+
+out <- as.data.frame(out)
+Pops <- c(popNames(obj), "Total")
+rownames(out) <- Pops
+colnames(out) <- name
+
+sem_out <- apply(variable, 2, function(x) sd(x) / sqrt(length(x))) 
+  ## 2 means work along columns
+sem_out_mean <- sd(variable) / sqrt(length(variable))
+
+sem_out <- as.data.frame(c(sem_out, sem_out_mean))
+rownames(sem_out) <- Pops
+colnames(sem_out) <- paste("SE", name, sep = "_")
+
+table_out <- cbind(out, sem_out)
+
+return(table_out)
+}
+
+
+
+
+###### basic statistics reported from poppr and their SEs
+poppr2hierfstat_out <- function(obj, variable){
+  
+obj_list <- seppop(obj)
+  
+stats_poppr <- list()
+for(i in 1: length(obj_list)){
+  stats_poppr[[i]] <- locus_table(obj_list[[i]], information = F)
+}
+
+table_out <- list()
+for(i in 1:length(obj_list))
+table_out[[i]] <- stats_poppr[[i]][-nrow(stats_poppr[[1]]), variable]
+
+table_out <- as.matrix(as.data.frame(table_out))
+colnames(table_out) <- popNames(obj)
+
+return(table_out)
+}
+
+```
+
+
+## SSR
+```{r}
+library(poppr)
+library(hierfstat)
+library(reshape2)
+
+## N
+N_by_locus <- basic.stats(obj_SSR)[["n.ind.samp"]]
+obj_list <- seppop(obj_SSR)
+N <- list()
+for(i in 1:length(obj_list)){
+        N[[i]] <- length(obj_list[[i]]@pop)
+}
+N <- melt(N)
+N <- c(N[,1], sum(N[,1]))
+
+## na
+na_by_locus <- poppr2hierfstat_out(obj_SSR, "allele")
+na <- table_out(obj_SSR, na_by_locus, "na")
+
+
+## uHe
+uHe_by_locus <- poppr2hierfstat_out(obj_SSR, "Hexp")
+uHe <- table_out(obj_SSR, uHe_by_locus, "uHe")
+
+## Ho
+Ho_by_locus <- basic.stats(obj_SSR)[["Ho"]]
+Ho <- table_out(obj_SSR, Ho_by_locus, "Ho")
+
+## ne
+ne_by_locus_Hs <- 1 / (1 - (basic.stats(obj_SSR)[["Hs"]]))
+ne_Hs <- table_out(obj_SSR, ne_by_locus_Hs, "ne")
+
+## ## ne
+## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_SSR)[["Hs"]]))
+## ne_Hs <- table_out(obj_SSR, ne_by_locus, "ne")
+
+## Fis
+Fis_by_locus <- basic.stats(obj_SSR)[["Fis"]]
+Fis <- table_out(obj_SSR, Fis_by_locus, "Fis") ## better use boot.ppfis
+
+## Private alleles
+PA <- rowSums(poppr::private_alleles(obj_SSR, count.alleles=F))
+PA <- data.frame(PA)
+PA <- rbind(PA, Total=colSums(PA))
+```
+
+```{r SummaryTable, cache=T, include=T}
+library(kableExtra)
+
+summary_df <- cbind(N, Ho[,1], uHe[,1], Fis[,1], PA)
+rownames(summary_df) <- c(popNames(obj_SSR), "Total")
+colnames(summary_df) <- c("N", "Ho", "uHe", "Fis", "PA")
+summary_df <- round(as.data.frame(summary_df), digits = 3)
+
+knitr::kable(summary_df, "html", digits = 3) %>% 
+        kable_styling(bootstrap_options = "striped", full_width = F)
+
+## summary_df2 <- cbind(N, na, ne_Hs, Ho, uHe)
+## summary_df2
+```
+
+N: number of individuals  
+Ho: observed heterozygosity  
+uHe: unbiased expected heterozygosity - gene diversity [@nei_EstimationAverageHeterozygosity_1978]
+
+Fis: inbreeding coefficient [@nei_MolecularEvolutionaryGenetics_1987]
+
+PA: private alleles
+
+```{r include=T}
+setPop(obj_SSR) <- ~Country
+
+# PA <- rep(0, length(popNames(obj_SSR)))
+PA <- rowSums(poppr::private_alleles(obj_SSR, count.alleles=F))
+PA <- data.frame(PA)
+PA <- rbind(PA, Total=colSums(PA))
+
+knitr::kable(PA, "html", digits = 3, 
+             caption="Private alleles per cohort") %>% 
+        kable_styling(bootstrap_options = "striped", full_width = F)
+                      
+
+setPop(obj_SSR) <- ~Country/Pop
+```
+
+### Private alleles per cohort - level Country
+```{r include=T, fig.width=7, fig.height=7}
+setPop(obj_SSR) <- ~Country
+
+private <- poppr::private_alleles(obj_SSR, 
+                                  report = "data.frame")
+private
+if(is.data.frame(private)){
+
+ggplot(private) + geom_tile(aes(x = population,
+                                y = allele,
+                                fill = count)) +
+  ggtitle("Private Alleles per Cohort") +
+  scale_fill_viridis_c() +
+    theme(axis.title = element_text(size = 14), 
+    axis.text.x = element_text(size = 14), 
+    axis.text.y = element_text(size = 6)) +
+  xlab("Cohort") + ylab("Allele")
+  
+}
+
+setPop(obj_SSR) <- ~Country/Pop
+```

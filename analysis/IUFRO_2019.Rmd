@@ -21,8 +21,7 @@ always_allow_html: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(include = F, echo=FALSE,
-                      cache = TRUE)
+knitr::opts_chunk$set(include = F, echo=FALSE, cache=T)
 ```
 
 <!-- ## To Implement -->
@@ -156,6 +155,20 @@ PA_SSR <- PA_SSR %>%
 PA_SSR$Cohort <- rownames(PA_SSR)
 ```
 
+```{r}
+source("scripts/bootstrap.R")
+# calculate PA sd
+PA_per_loc_ssr <- t(
+          poppr::private_alleles(obj_SSR, count.alleles = F) )
+
+PA_sd_ssr <- boot.param.sd(PA_per_loc_ssr, nboot = 10000)
+
+# test significance
+t.test(x=PA_per_loc_ssr[,1], y=PA_per_loc_ssr[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+```
+
 <!-- ## SNPs Private alleles per cohort - level Country/Pop -->
 ```{r private_SNP, cache=TRUE, dpi=300, fig.width=8.5, include=F}
 private <- poppr::private_alleles(obj_SNP, report = "data.frame")
@@ -184,26 +197,44 @@ PA_SNP <- PA_SNP %>%
 PA_SNP$Cohort <- rownames(PA_SNP)
 ```
 
+```{r}
+# calculate PA sd
+PA_per_loc_snp <- t(
+          poppr::private_alleles(obj_SNP, count.alleles = F) )
+
+PA_sd_snp <- boot.param.sd(PA_per_loc_snp, nboot = 10000)
+
+# test significance
+t.test(x=PA_per_loc_snp[,1], y=PA_per_loc_snp[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+```
+
 <!-- ## PA -->
 ```{r private, fig.height=3, fig.width=4.2, include=T}
-#bind dfs
-PA_df <- rbind(PA_SSR, PA_SNP)
-
-pa <- PA_df %>% 
-      ggplot(aes(x=Cohort, y=`Private alleles`, fill=Cohort)) +
-            geom_bar(stat="identity", width = 0.5,
-                     color="black") +
-            facet_wrap(~ marker) +
-      theme_classic() +
-      theme(legend.position = "none") +
-      scale_fill_manual(values = c("grey40", "grey90")) +
-      scale_y_continuous(breaks = c(0, 3, 6, 9, 11))
-
-pa + theme(axis.title = element_text(size = 14), 
-    axis.text = element_text(size = 11), 
-    axis.text.x = element_text(size = 11), 
-    axis.text.y = element_text(size = 13),
-    strip.text.x = element_text(size = 11))
+# #bind dfs
+# PA_df <- rbind(PA_SSR, PA_SNP)
+# PA_df$sdev <- rbind(PA_sd_ssr, PA_sd_snp)
+# PA_df$sdev <- unlist(PA_df$sdev)
+# 
+# pa <- PA_df %>% 
+#       ggplot(aes(x=Cohort, y=`Private alleles`, fill=Cohort)) +
+#             geom_bar(stat="identity", width = 0.5,
+#                      color="black") +
+#             geom_errorbar(aes(ymin=`Private alleles`-sdev,
+#                               ymax=`Private alleles`+sdev),
+#                           width=.2, position=position_dodge(.9)) +
+#             facet_wrap(~ marker) +
+#       theme_classic() +
+#       theme(legend.position = "none") +
+#       scale_fill_manual(values = c("grey40", "grey90")) +
+#       scale_y_continuous(breaks = c(0, 3, 6, 9, 11))
+# 
+# pa + theme(axis.title = element_text(size = 14), 
+#     axis.text = element_text(size = 11), 
+#     axis.text.x = element_text(size = 11), 
+#     axis.text.y = element_text(size = 13),
+#     strip.text.x = element_text(size = 11))
 
 # SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
@@ -268,6 +299,8 @@ return(table_out)
 library(poppr)
 library(hierfstat)
 library(reshape2)
+source("scripts/bootstrap.R")
+
 
 ## N
 N_by_locus <- basic.stats(obj_SSR)[["n.ind.samp"]]
@@ -288,13 +321,21 @@ na_ssr <- table_out(obj_SSR, na_by_locus, "na")
 uHe_by_locus <- poppr2hierfstat_out(obj_SSR, "Hexp")
 uHe_ssr <- table_out(obj_SSR, uHe_by_locus, "uHe")
 
+uHe_sd_ssr <- boot.param.sd(uHe_by_locus, nboot = 10000)
+
+
 ## Ho
 Ho_by_locus <- basic.stats(obj_SSR)[["Ho"]]
 Ho_ssr <- table_out(obj_SSR, Ho_by_locus, "Ho")
 
+Ho_sd_ssr <- boot.param.sd(Ho_by_locus, nboot = 10000)
+
+
 ## ne
 ne_by_locus_Hs <- 1 / (1 - (basic.stats(obj_SSR)[["Hs"]]))
 ne_Hs_ssr <- table_out(obj_SSR, ne_by_locus_Hs, "ne")
+
+ne_sd_ssr <- boot.param.sd(ne_by_locus_Hs, nboot = 10000)
 
 ## ## ne
 ## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_SSR)[["Hs"]]))
@@ -308,6 +349,26 @@ Fis_ssr <- table_out(obj_SSR, Fis_by_locus, "Fis") ## better use boot.ppfis
 PA <- rowSums(poppr::private_alleles(obj_SSR, count.alleles=F))
 PA <- data.frame(PA)
 PA_ssr <- rbind(PA, Total=colSums(PA))
+```
+
+
+```{r sig_ssr, include=T}
+# check significance
+
+## uHe
+t.test(x=uHe_by_locus[,1], y=uHe_by_locus[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+
+## Ho
+t.test(x=Ho_by_locus[,1], y=Ho_by_locus[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+
+## Fis
+t.test(x=Fis_by_locus[,1], y=Fis_by_locus[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
 ```
 
 ```{r}
@@ -333,6 +394,7 @@ ggplot(aes(x = population, y = uHe) ) +
 library(poppr)
 library(hierfstat)
 library(reshape2)
+source("scripts/bootstrap.R")
 
 ## N
 N_by_locus <- basic.stats(obj_SNP)[["n.ind.samp"]]
@@ -353,13 +415,20 @@ na_snp <- table_out(obj_SNP, na_by_locus, "na")
 uHe_by_locus <- poppr2hierfstat_out(obj_SNP, "Hexp")
 uHe_snp <- table_out(obj_SNP, uHe_by_locus, "uHe")
 
+uHe_sd_snp <- boot.param.sd(uHe_by_locus, nboot = 10000)
+
 ## Ho
 Ho_by_locus <- basic.stats(obj_SNP)[["Ho"]]
 Ho_snp <- table_out(obj_SNP, Ho_by_locus, "Ho")
 
+Ho_sd_snp <- boot.param.sd(Ho_by_locus, nboot = 10000)
+
 ## ne
 ne_by_locus_Hs <- 1 / (1 - (basic.stats(obj_SNP)[["Hs"]]))
 ne_Hs_snp <- table_out(obj_SNP, ne_by_locus_Hs, "ne")
+
+ne_sd_snp <- boot.param.sd(ne_by_locus_Hs, nboot = 10000)
+
 
 ## ## ne
 ## ne_by_locus_He <- 1 / (1 - (basic.stats(obj_SNP)[["Hs"]]))
@@ -382,6 +451,25 @@ if(is.numeric(PA_SNP_p)){
 
 ```
 
+```{r sig_snp, include=T}
+# check significance
+
+## uHe
+t.test(x=uHe_by_locus[,1], y=uHe_by_locus[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+
+## Ho
+t.test(x=Ho_by_locus[,1], y=Ho_by_locus[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+
+## Fis
+t.test(x=Fis_by_locus[,1], y=Fis_by_locus[,2],
+       alternative = "two.sided", var.equal = F, 
+       paired = F, conf.level = 0.95)
+```
+
 <!-- ## He -->
 ```{r He, fig.height=3, fig.width=4.2, include=T}
 uHe_ssr$Cohort <- rownames(uHe_ssr)
@@ -392,11 +480,16 @@ uHe_snp$marker <- "140 SNP loci"
 
 #bind dfs
 uHe_df <- rbind(uHe_ssr[-3,], uHe_snp[-3,])
+uHe_df$sdev <- rbind(uHe_sd_ssr, uHe_sd_snp)
+uHe_df$sdev <- unlist(uHe_df$sdev)
 
 uHe_p <- uHe_df %>% 
       ggplot(aes(x=Cohort, y=uHe, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
                      color="black") +
+            geom_errorbar(aes(ymin=uHe-sdev,
+                              ymax=uHe+sdev),
+                          width=.2, position=position_dodge(.9)) +
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
@@ -407,7 +500,8 @@ uHe_p + theme(axis.title = element_text(size = 14),
     axis.text.x = element_text(size = 11), 
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11))+
-  ylab(expression(H[E]))
+  ylab(expression(H[E])) +
+  scale_y_continuous(limits = c(0, 0.8))
 
 # SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
@@ -422,11 +516,16 @@ Ho_snp$marker <- "140 SNP loci"
 
 #bind dfs
 Ho_df <- rbind(Ho_ssr[-3,], Ho_snp[-3,])
+Ho_df$sdev <- rbind(Ho_sd_ssr, Ho_sd_snp)
+Ho_df$sdev <- unlist(Ho_df$sdev)
 
 Ho_p <- Ho_df %>% 
       ggplot(aes(x=Cohort, y=Ho, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
                      color="black") +
+            geom_errorbar(aes(ymin=Ho-sdev,
+                          ymax=Ho+sdev),
+                      width=.2, position=position_dodge(.9)) +
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
@@ -437,7 +536,8 @@ Ho_p + theme(axis.title = element_text(size = 14),
     axis.text.x = element_text(size = 11), 
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
-  ylab(expression(H[O]))
+  ylab(expression(H[O])) +
+  scale_y_continuous(limits = c(0, 0.6))
 
 # SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
@@ -469,7 +569,7 @@ Fis_p <- Fis_df %>%
                      size=2.5) +
             geom_errorbar(aes(ymin=ll,
                               ymax=hl),
-                              width=0.4) +
+                              width=0.2) +
             facet_wrap(~ marker) +
       theme_classic() +
       theme(legend.position = "none") +
@@ -480,7 +580,8 @@ Fis_p + theme(axis.title = element_text(size = 14),
     axis.text.x = element_text(size = 11), 
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
-  ylab(expression(F[IS]))
+  ylab(expression(F[IS])) +
+  scale_y_continuous(limits = c(-0.035, 0.45))
 
 # SHOW WHAT IS THE SAMPLE SIZE!!!
 ```
@@ -536,7 +637,8 @@ fst_comp_p +
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
   ylab(expression(F[ST])) +
-  xlab("Marker system")
+  xlab("Marker system") +
+  scale_y_continuous(limits = c(-0.001, 0.012))
 ```
 F~ST~ 95% confidence intervals from 10000 bootstraps over loci
 
@@ -783,6 +885,14 @@ kableExtra::kable(ss,caption = "Sample size",
 ```
 
 ```{r}
+# calculate allelic richness sd
+library(hierfstat)
+ar_ssr <- allelic.richness(obj_SSR, min.n = 44)
+ar_ssr <- as.matrix(ar_ssr[["Ar"]])
+ar_sd_ssr <- boot.param.sd(ar_ssr, nboot=10000)
+```
+
+```{r}
 df_kraj <- data.frame(
         ar = 4.29,
         ar_sd = 1.34,
@@ -795,10 +905,12 @@ df_kraj <- data.frame(
 
 df_gr <- data.frame(
         ar = c(5.9, 5.6),
-        ar95 = 
+        ar_sd = unlist(ar_sd_ssr),
         par = c(0.21, 0.18),
         ne = c(4.39, 4.42),
-        he = c(0.589, 0.593)
+        ne_sd = unlist(ne_sd_ssr),
+        he = c(0.589, 0.593),
+        he_sd = unlist(uHe_sd_ssr)
 )
 
 df_comp <- rbind(df_kraj, df_gr)
@@ -806,11 +918,14 @@ df_comp$study <- c("Krajmerová et al. \n 2015 (7 SSRs)", "Current study \n (11 
 df_comp$Cohort <- c("GR_A", "GR_A", "GR_NR")
 ```
 
-```{r alrichness, fig.height=3, fig.width=4.2, include=T}
+```{r alrichness, fig.height=3.5, fig.width=4.2, include=T}
 ar_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=ar, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
                      color="black") +
+            geom_errorbar(aes(ymin=ar-ar_sd,
+                          ymax=ar+ar_sd),
+                      width=.2, position=position_dodge(.9)) +
             facet_grid(~ study, scales="free_x",
                        space = "free_x") +
       theme_classic() +
@@ -822,12 +937,23 @@ ar_comp_p + theme(axis.title = element_text(size = 14),
     axis.text.x = element_text(size = 11), 
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
-        ylab("AR") +
-    ggtitle("Allelic Richness (g=44) \nMt. Olympus region")
+        ylab("AR") 
+    # ggtitle("Allelic Richness (g=44) \nMt. Olympus region")
 ```
 Rarefaction to g=44 gene copies (i.e. 22 individuals).
 
-```{r palrichness, fig.height=3, fig.width=4.5, include=T}
+```{r arSig, include=T}
+# check statistical significance
+# library(BSDA)
+# 
+# tsum.test(mean.x = df_kraj$ar, s.x = df_kraj$ar_sd, n.x = 7,
+#           mean.y = df_gr$ar[1], s.y = df_gr$ar_sd[1], n.y = 11,
+#           alternative = "two.sided", var.equal = FALSE,
+#           conf.level = 0.95)
+```
+
+
+```{r palrichness, fig.height=3.5, fig.width=4.5, include=T}
 par_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=par, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
@@ -848,11 +974,14 @@ par_comp_p + theme(axis.title = element_text(size = 14),
 ```
 Rarefaction to g=44 gene copies (i.e. 22 individuals).
 
-```{r effectiveall, fig.height=3, fig.width=4.2, include=T}
+```{r effectiveall, fig.height=3.5, fig.width=4.2, include=T}
 ne_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=ne, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
                      color="black") +
+            geom_errorbar(aes(ymin=ne-ne_sd,
+                          ymax=ne+ne_sd),
+                      width=.2, position=position_dodge(.9)) +
             facet_grid(~ study, scales="free_x",
                        space = "free_x") +
       theme_classic() +
@@ -864,15 +993,30 @@ ne_comp_p + theme(axis.title = element_text(size = 14),
     axis.text.x = element_text(size = 11), 
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
-        ylab(expression(n[e])) +
-    ggtitle("Effective Number of Alleles \nMt. Olympus region")
+        ylab(expression(n[e])) 
+    # ggtitle("Effective Number of Alleles \nMt. Olympus region")
 ```
 
-```{r he_comp, fig.height=3, fig.width=4.5, include=T}
+
+```{r neSig, include=T}
+# check statistical significance
+# library(BSDA)
+# 
+# tsum.test(mean.x = df_kraj$ne, s.x = df_kraj$ne_sd, n.x = 7,
+#           mean.y = df_gr$ne[1], s.y = df_gr$ne_sd[1], n.y = 11,
+#           alternative = "two.sided", var.equal = FALSE,
+#           conf.level = 0.95)
+```
+
+
+```{r he_comp, fig.height=3.5, fig.width=4.5, include=T}
 he_comp_p <- df_comp %>% 
       ggplot(aes(x=Cohort, y=he, fill=Cohort)) +
             geom_bar(stat="identity", width = 0.5,
                      color="black") +
+            geom_errorbar(aes(ymin=he-he_sd,
+                          ymax=he+he_sd),
+                      width=.2, position=position_dodge(.9)) +
             facet_grid(~ study, scales="free_x",
                        space = "free_x") +
       theme_classic() +
@@ -884,9 +1028,21 @@ he_comp_p + theme(axis.title = element_text(size = 14),
     axis.text.x = element_text(size = 11), 
     axis.text.y = element_text(size = 13),
     strip.text.x = element_text(size = 11)) +
-        ylab(expression(H[E])) +
-    ggtitle("Expected Heterozygosity (Nei 1978) \nMt. Olympus region")
+        ylab(expression(H[E])) 
+    # ggtitle("Expected Heterozygosity (Nei 1978) \nMt. Olympus region")
 ```
+
+
+```{r heSig, include=T}
+# check statistical significance
+# library(BSDA)
+# 
+# tsum.test(mean.x = df_kraj$he, s.x = df_kraj$he_sd, n.x = 7,
+#           mean.y = df_gr$he[1], s.y = df_gr$he_sd[1], n.y = 11,
+#           alternative = "two.sided", var.equal = FALSE,
+#           conf.level = 0.95)
+```
+
 
 # Information Capacity
 ```{r}
@@ -921,6 +1077,8 @@ ic_p +
 ```
 
 Όσον αφορά το SNP data set, παρατηρούμε μεγάλο αριθμό μονομορφικών θέσεων στους ελληνικούς πληθυσμούς (ενδεχομένως επειδή το reference genome για το SNP array που χρησιμοποιήσαμε ήταν *A. alba* ;). Εν μέρει αυτό ευθύνεται για την χαμηλότερη τιμή στο information capacity. Ωστόσο ακόμα για χαμηλά ποσοστά μονομορφικών θέσεων, 200-250 SNP δεν παρουσιάζουν σημαντικά υψηλότερο information capacity από τα 11 SSR που χρησιμοποιούμε.
+
+However SNP loci have proved more accurate for pop discrimination (data not shown)
 
 ## PIC (Botstein et al. 1980)
 ```{r}
