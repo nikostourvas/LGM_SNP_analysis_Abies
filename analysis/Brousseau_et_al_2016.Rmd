@@ -435,8 +435,9 @@ all_br$origin <- "Brousseau et al. 2016"
 all_br$lineages <- lineages
 
 # str(all)
-
-p_na <- ggplot(all_br, aes(x=population, y=count, fill=lineages) ) +
+all_br <- all_br %>% 
+  reorder()
+p_na <- ggplot(all_br, aes(x=fct_reorder(population, count, .desc = TRUE), y=count, fill=lineages) ) +
   geom_bar(stat = "identity", 
            color = "black",
            width = .7) +
@@ -450,14 +451,15 @@ p_na <- ggplot(all_br, aes(x=population, y=count, fill=lineages) ) +
     axis.text.y = element_text(size = 14),
     plot.title = element_text(size = 16),
     legend.text = element_text(size = 14),
-    legend.title = element_text(size = 14)) +
-  labs(x = "Population", y = "Total N of Alleles")
+    legend.title = element_text(size = 0)) +
+  labs(x = "Population", y = "Total N of Alleles") +
+  ggtitle("Brousseau et al. 2016")
 
 
 p_na
 
-# ggsave(filename = "../results/figs/Abies_Na_SNP.png",
-#        width = 2.5, height = 2.5, units = "in", dpi = 300)
+ggsave(filename = "../results/Brousseau/Abies_Na_SNP.png",
+       width = 7, height = 7, units = "in", dpi = 300)
 ```
 If the Ab hypothesis is true, the same SNPs should be missing from proximal pops
 far from Mt Ventoux. Check?
@@ -673,9 +675,9 @@ So, 43 out of 47 nonpoly loci in LGM GR, are also nonpoly in BG A. alba
 ```{r}
 library(nVennR)
 venn <- plotVenn(list(BG=nonpoly_br_bg, 
-              GR_Olympus=nonpoly_snp_gr, 
-              GR_Pelop=nonpoly_br_gr), 
-         nCycles = 2000)
+                      GR_Olympus=nonpoly_snp_gr, 
+                      GR_Pelop=nonpoly_br_gr), 
+                  nCycles = 2000)
 
 showSVG(venn)
 ```
