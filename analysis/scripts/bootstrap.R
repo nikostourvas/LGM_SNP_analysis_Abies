@@ -51,9 +51,11 @@ boot.param.sd <- function(x, nboot=1000){
                 res <- boot(data = x,
                             statistic = boot.mean.df,
                             R=nboot)
-                res <- apply(res$t, 2, sd)
-                res <- data.frame(sd = res)
-                rownames(res) <- colnames(x)
-                return(res)
+                res_sd <- apply(res$t, 2, sd)
+                res_sd <- data.frame(sd = res_sd)
+                rownames(res_sd) <- colnames(x)
+                return(list(res = res,
+                            sd = res_sd)
+                )
         }
 }
